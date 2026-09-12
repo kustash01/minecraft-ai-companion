@@ -1,0 +1,2 @@
+FROM "C:/Users/kustash01/Downloads/qwen2.5-3b-instruct-q4_k_m.gguf"
+PARAMETER num_ctx 16384

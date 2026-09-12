@@ -1,0 +1,43 @@
+node_modules/
+.env
+.env.local
+data/*.db
+data/*.json
+logs/
+*.log
+dist/
+.DS_Store
+Thumbs.db
+
+# Auto-generated context docs
+.repo-context/
+.repo-context.json
+
+# Personal tooling / editor configs (may contain secrets)
+opencode.json
+.opencode/
+.claude/
+.serena/
+.mcp.json
+
+# Dev-process notes & one-off smoke scripts (kept locally, not published)
+AUTONOMOUS_GOALS_COMPLETE.md
+CHANGELOG_HUMAN_UPDATE.md
+FRIENDS_GUIDE.md
+HUMAN_CHAT_UPGRADE.md
+HUMAN_IMPROVEMENT_PLAN.md
+INTEGRATION_COMPLETE.md
+INTEGRATION_GUIDE.md
+LIVE_TEST_CHECKLIST.md
+MAXIMAL_HUMAN_COMPLETE.md
+MAXIMAL_HUMAN_SYSTEM.md
+START_HERE.md
+WORLD_AWARENESS_README.md
+README_HUMAN.md
+README_RU.md
+test-live.js
+test_gemini.js
+test_live_brain.js
+test_live_minecraft_playtest.js
+test_models.js
+test_tooken_smoke.js

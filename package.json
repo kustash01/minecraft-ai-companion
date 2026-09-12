@@ -1,0 +1,38 @@
+{
+  "name": "minecraft-ai-companion",
+  "version": "0.1.0",
+  "description": "AI Minecraft companion bot powered by Gemini",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/cli.js",
+    "dev": "node --watch src/cli.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@google/genai": "^2.18.0",
+    "better-sqlite3": "^13.0.3",
+    "dotenv": "^17.4.2",
+    "mineflayer": "^4.37.1",
+    "mineflayer-armor-manager": "^2.0.1",
+    "mineflayer-auto-eat": "^5.0.3",
+    "mineflayer-collectblock": "^1.6.0",
+    "mineflayer-pathfinder": "^2.4.5",
+    "mineflayer-pvp": "^1.3.2",
+    "mineflayer-tool": "^1.2.0",
+    "prismarine-viewer": "^1.33.0",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
+  },
+  "optionalDependencies": {
+    "canvas": "^2.11.2",
+    "node-canvas-webgl": "^0.2.6",
+    "three": "^0.128.0"
+  }
+}

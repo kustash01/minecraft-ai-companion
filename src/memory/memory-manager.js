@@ -1,0 +1,85 @@
+import { LongTermMemory } from './long-term.js';
+import { ShortTermMemory } from './short-term.js';
+import { POIManager, POITypes } from './poi-manager.js';
+import { Diary } from './diary.js';
+import { EpisodicMemory } from './episodic.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('MEMORY');
+
+export class MemoryManager {
+  constructor(dbPath = null) {
+    this.longTerm = new LongTermMemory(dbPath);
+    this.shortTerm = new ShortTermMemory();
+    this.pois = new POIManager(this.longTerm);
+    this.diary = new Diary(this.longTerm);
+    this.episodic = new EpisodicMemory(this.longTerm);
+
+    logger.info('Единый менеджер памяти инициализирован');
+  }
+
+  /**
+   * Возвращает компактный контекст памяти для AI Brain.
+   */
+  getMemoryContext(currentPos = null, query = null) {
+    const parts = [];
+
+    // 1. Известные POI
+    const allPois = this.pois.getPOIs();
+    if (allPois.length > 0) {
+      parts.push('[ИЗВЕСТНЫЕ МЕСТА / POI]');
+      for (const poi of allPois.slice(0, 5)) {
+        parts.push(`• ${poi.name} (${poi.type}): [${Math.round(poi.x)}, ${Math.round(poi.y)}, ${Math.round(poi.z)}] ${poi.notes ? '- ' + poi.notes : ''}`);
+      }
+    }
+
+    // 2. Важные факты
+    const facts = this.longTerm.getAllFacts();
+    if (facts.length > 0) {
+      parts.push('\n[ВАЖНЫЕ ФАКТЫ И ДОГОВОРЁННОСТИ]');
+      for (const fact of facts.slice(0, 5)) {
+        parts.push(`• ${fact.key}: ${fact.value}`);
+      }
+    }
+
+    // 3. Недавние эпизодические воспоминания
+    const episodes = this.episodic.recall(query, 3);
+    if (episodes.length > 0) {
+      parts.push('\n[НЕДАВНИЕ СОБЫТИЯ]');
+      for (const ep of episodes) {
+        parts.push(`• [День ${ep.mc_day || '?'}] ${ep.summary}`);
+      }
+    }
+
+    // 4. Активный план
+    const plan = this.shortTerm.getPlan();
+    if (plan) {
+      parts.push(`\n[ТЕКУЩИЙ ПЛАН]\nЦель: ${plan.goal}`);
+      for (let i = 0; i < plan.steps.length; i++) {
+        const step = plan.steps[i];
+        const mark = step.status === 'completed' ? '✓' : step.status === 'in_progress' ? '►' : '○';
+        parts.push(`${mark} Шаг ${i + 1}: ${step.description}`);
+      }
+    }
+
+    return parts.join('\n');
+  }
+
+  search(query = '', limit = 3) {
+    return this.episodic ? this.episodic.recall(query, limit) : [];
+  }
+
+  savePOI(name, x, y, z, notes = '', type = 'base') {
+    return this.pois.addPOI(name, type, { x, y, z }, notes);
+  }
+
+  getPOI(name) {
+    return this.pois.findByName(name) || (name === 'base' ? this.pois.getBase() : null);
+  }
+
+  close() {
+    this.longTerm.close();
+  }
+}
+
+export { POITypes };
