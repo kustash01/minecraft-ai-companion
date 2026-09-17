@@ -1,6 +1,6 @@
 {
   "name": "minecraft-ai-companion",
-  "version": "0.2.0",
+  "version": "2.0.0",
   "description": "AI Minecraft companion bot powered by Gemini",
   "type": "module",
   "main": "src/index.js",

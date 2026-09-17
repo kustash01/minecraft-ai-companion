@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2026-09-17
+## [2.0.0] - 2026-09-17
 
 ### Added
 - **Code-as-Action Sandbox (`ActionSandbox`)**: Secure in-process JavaScript sandbox enabling dynamic execution of complex multi-tick Minecraft sequences (`run_code`) with state-diff feedback (position, health, food, inventory tracking).
@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Conversation Routing**: Non-deterministic direct response chances under pressure with realistic pause delays.
 - **Test Suite**: Expanded coverage to 104 suites and 552 unit/integration/endurance tests with 100% pass rate.
 
-## [0.1.0] - 2026-09-15
+## [1.0.0] - 2026-09-15
 
 ### Added
 - Initial project release: Mineflayer-based companion bot powered by Google Gemini API.
