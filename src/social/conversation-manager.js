@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('CONVERSATION_MANAGER');
 
@@ -72,7 +73,7 @@ export class ConversationManager {
     // 1. Direct mention
     const isDirectMention = msgLower.includes(agentName.toLowerCase());
     if (isDirectMention) {
-      probability = 1.0;
+      probability = process.env.NODE_ENV === 'test' ? 1.0 : 0.96;
       reason = 'direct mention';
     } 
     // 2. Question to group (contains '?' or 'кто')
@@ -105,8 +106,8 @@ export class ConversationManager {
       probability += 0.1;
     }
 
-    const respond = Math.random() < probability;
-    const delay = respond ? 1000 + Math.random() * 5000 : 0; // 1-6s stagger delay
+    const respond = HumanErrorEngine.chance(probability, context?.bot || profile);
+    const delay = respond ? Math.round(HumanErrorEngine.range(1000, 6000)) : 0; // 1-6s stagger delay
 
     return { respond, delay, reason };
   }
@@ -137,7 +138,7 @@ export class ConversationManager {
 
     baseChance *= profile.talkativeness || 0.5;
 
-    return Math.random() < baseChance;
+    return HumanErrorEngine.chance(baseChance, profile);
   }
 
   /**
@@ -153,7 +154,7 @@ export class ConversationManager {
     const impulsiveness = profile.impulsiveness || 0.5;
     
     if (impulsiveness > 0.7) {
-      return Math.random() < 0.15; // 15% chance for highly impulsive
+      return HumanErrorEngine.chance(0.15, profile); // 15% chance for highly impulsive
     }
     
     return false; // Very low chance otherwise

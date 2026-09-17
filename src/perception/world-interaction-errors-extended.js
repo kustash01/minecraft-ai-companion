@@ -2,6 +2,7 @@ import { createLogger } from '../utils/logger.js';
 import { ErrorMemory } from './error-memory.js';
 import { PersonalityHabits } from './personality-habits.js';
 import { EnvironmentInfluence } from './environment-influence.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('WORLD_INTERACTION_ERRORS_EXTENDED');
 
@@ -247,7 +248,7 @@ export class WorldInteractionErrorsExtended {
       if (mood.fatigue > 0.6) chance += 0.08;
     }
 
-    if (Math.random() < chance) {
+    if (HumanErrorEngine.chance(chance, this.emotions)) {
       const error = {
         type: 'combat_miss',
         description: 'Промахнулся в боевом действии',
@@ -266,7 +267,7 @@ export class WorldInteractionErrorsExtended {
       if (mood.fatigue > 0.6) chance += 0.1;
     }
 
-    if (Math.random() < chance) {
+    if (HumanErrorEngine.chance(chance, this.emotions)) {
       const error = {
         type: 'building_wrong_block',
         description: 'Ломает не тот блок',
@@ -284,7 +285,7 @@ export class WorldInteractionErrorsExtended {
       chance += 0.1;
     }
 
-    if (Math.random() < chance) {
+    if (HumanErrorEngine.chance(chance, this.emotions)) {
       const error = {
         type: 'crafting_wrong_recipe',
         description: 'Выбрал неправильный рецепт',
@@ -297,7 +298,7 @@ export class WorldInteractionErrorsExtended {
   }
 
   checkFishingErrors(action, context = {}) {
-    if (Math.random() < this.fishingErrors.castWrong) {
+    if (HumanErrorEngine.chance(this.fishingErrors.castWrong, this.emotions)) {
       const error = {
         type: 'fishing_cast_wrong',
         description: 'Неправильно забросил удочку',
@@ -310,7 +311,7 @@ export class WorldInteractionErrorsExtended {
   }
 
   checkPotionErrors(action, context = {}) {
-    if (Math.random() < this.potionErrors.drinkWrong) {
+    if (HumanErrorEngine.chance(this.potionErrors.drinkWrong, this.emotions)) {
       const error = {
         type: 'potion_wrong',
         description: 'Выпил неправильное зелье',
@@ -323,12 +324,12 @@ export class WorldInteractionErrorsExtended {
   }
 
   checkRidingErrors(action, context = {}) {
-    if (Math.random() < this.ridingErrors.fallFromRide) {
+    if (HumanErrorEngine.chance(this.ridingErrors.fallFromRide, this.emotions)) {
       const error = {
         type: 'riding_fall',
         description: 'Упал со скакуна',
         severity: 'moderate',
-        damage: Math.floor(Math.random() * 4) + 1,
+        damage: Math.round(HumanErrorEngine.range(1, 4, this.emotions)),
       };
       this._recordError(error);
       return error;
@@ -337,7 +338,7 @@ export class WorldInteractionErrorsExtended {
   }
 
   checkAimingErrors(action, context = {}) {
-    if (Math.random() < this.aimingErrors.aimTooHigh) {
+    if (HumanErrorEngine.chance(this.aimingErrors.aimTooHigh, this.emotions)) {
       const error = {
         type: 'aiming_too_high',
         description: 'Целит слишком высоко',
@@ -350,7 +351,7 @@ export class WorldInteractionErrorsExtended {
   }
 
   checkInteractionErrors(action, context = {}) {
-    if (Math.random() < this.interactionErrors.openWrongDoor) {
+    if (HumanErrorEngine.chance(this.interactionErrors.openWrongDoor, this.emotions)) {
       const error = {
         type: 'interaction_wrong_target',
         description: 'Открыл не тот контейнер',
@@ -363,7 +364,7 @@ export class WorldInteractionErrorsExtended {
   }
 
   checkDistanceErrors(action, context = {}) {
-    if (Math.random() < this.distanceErrors.wrongJump) {
+    if (HumanErrorEngine.chance(this.distanceErrors.wrongJump, this.emotions)) {
       const error = {
         type: 'distance_wrong_jump',
         description: 'Неправильно рассчитал прыжок',
@@ -376,7 +377,7 @@ export class WorldInteractionErrorsExtended {
   }
 
   checkNavigationErrors(action, context = {}) {
-    if (Math.random() < this.navigationErrors.wrongDirection) {
+    if (HumanErrorEngine.chance(this.navigationErrors.wrongDirection, this.emotions)) {
       const error = {
         type: 'navigation_wrong_direction',
         description: 'Пошёл в неправильную сторону',
@@ -389,7 +390,7 @@ export class WorldInteractionErrorsExtended {
   }
 
   checkRedstoneErrors(action, context = {}) {
-    if (Math.random() < this.redstoneErrors.touchRedstone) {
+    if (HumanErrorEngine.chance(this.redstoneErrors.touchRedstone, this.emotions)) {
       const error = {
         type: 'redstone_touch',
         description: 'Коснулся редстоуна',
@@ -412,7 +413,7 @@ export class WorldInteractionErrorsExtended {
     if (mood.excitement > 0.8) chance = this.emotionalErrors.excitedMistake;
     if (mood.fear > 0.6) chance = this.emotionalErrors.scaredMistake;
 
-    if (Math.random() < chance) {
+    if (HumanErrorEngine.chance(chance, this.emotions)) {
       const error = {
         type: 'emotional_error',
         description: `Ошибка из-за ${mood.stress > 0.7 ? 'стресса' : mood.excitement > 0.8 ? 'возбуждения' : 'страха'}`,

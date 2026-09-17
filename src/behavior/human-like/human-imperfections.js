@@ -1,4 +1,5 @@
 import { createLogger } from '../../utils/logger.js';
+import { HumanErrorEngine } from '../human-error-engine.js';
 
 const logger = createLogger('HUMAN_IMPERFECTIONS');
 
@@ -19,6 +20,23 @@ export class HumanImperfections {
 
     // Отложенные задачи (прокрастинация)
     this.postponedTasks = [];
+
+    // НОВОЕ: Микро-привычки и паттерны поведения
+    this.microHabits = {
+      jumpsWhileWalking: HumanErrorEngine.chance(0.5), // Прыгает при ходьбе
+      spinWhenIdle: HumanErrorEngine.chance(0.4), // Крутится когда стоит
+      sneakWhenScared: HumanErrorEngine.chance(0.6), // Крадётся когда страшно
+      checkInventoryOften: HumanErrorEngine.chance(0.5), // Часто проверяет инвентарь
+      randomCrouches: HumanErrorEngine.chance(0.3), // Случайные присяды
+    };
+
+    // Текущее состояние
+    this.currentMood = 'neutral'; // bored, excited, tired, anxious, relaxed
+    this.attention = 1.0; // Уровень концентрации (1.0 = полная, 0.0 = совсем отвлёкся)
+    this.motivation = 0.7; // Мотивация что-то делать
+    this.lastInterestingEvent = 0;
+    this.boredSince = null;
+    this.distractionTarget = null; // На что отвлёкся
   }
 
   /**
@@ -63,7 +81,7 @@ export class HumanImperfections {
       mistakeChance *= 0.7; // Max более аккуратный
     }
     
-    const shouldMistake = Math.random() < mistakeChance;
+    const shouldMistake = HumanErrorEngine.chance(mistakeChance, context);
     
     if (shouldMistake) {
       this.lastMistakeTime = Date.now();
@@ -89,7 +107,7 @@ export class HumanImperfections {
     };
     
     const types = mistakeTypes[action] || ['generic_mistake'];
-    return types[Math.floor(Math.random() * types.length)];
+    return HumanErrorEngine.choice(types);
   }
 
   /**
@@ -115,7 +133,7 @@ export class HumanImperfections {
       forgetChance *= 0.5;
     }
     
-    const shouldForget = Math.random() < forgetChance;
+    const shouldForget = HumanErrorEngine.chance(forgetChance, context);
     
     if (shouldForget) {
       this.forgottenThings.push({
@@ -143,7 +161,7 @@ export class HumanImperfections {
         // Вероятность вспомнить растет со временем
         let rememberChance = Math.min(0.8, timeForgotten / 30); // Максимум 80% через 30 минут
         
-        if (Math.random() < rememberChance) {
+        if (HumanErrorEngine.chance(rememberChance)) {
           forgotten.remembered = true;
           logger.debug(`[${this.profile.name}] Вспомнил: ${forgotten.item}`);
           
@@ -175,7 +193,7 @@ export class HumanImperfections {
       `${item}... где же я его оставил?`
     ];
     
-    return messages[Math.floor(Math.random() * messages.length)];
+    return HumanErrorEngine.choice(messages);
   }
 
   /**
@@ -206,7 +224,7 @@ export class HumanImperfections {
       postponeChance += 0.2;
     }
     
-    const shouldPostpone = Math.random() < postponeChance;
+    const shouldPostpone = HumanErrorEngine.chance(postponeChance, context);
     
     if (shouldPostpone) {
       this.postponedTasks.push({
@@ -229,14 +247,14 @@ export class HumanImperfections {
    */
   _generatePostponeMessage(tiredness, taskAppealing) {
     if (tiredness > 0.7) {
-      return ['Устал я, потом сделаю', 'Давай попозже', 'Не могу сейчас, устал'][Math.floor(Math.random() * 3)];
+      return HumanErrorEngine.choice(['Устал я, потом сделаю', 'Давай попозже', 'Не могу сейчас, устал']);
     }
     
     if (taskAppealing === 'boring') {
-      return ['Лень', 'Не хочу щас', 'Давай потом', 'Скучно это'][Math.floor(Math.random() * 4)];
+      return HumanErrorEngine.choice(['Лень', 'Не хочу щас', 'Давай потом', 'Скучно это']);
     }
     
-    return ['Попозже', 'Потом сделаю', 'Ща не хочу'][Math.floor(Math.random() * 3)];
+    return HumanErrorEngine.choice(['Попозже', 'Потом сделаю', 'Ща не хочу']);
   }
 
   /**
@@ -265,7 +283,7 @@ export class HumanImperfections {
       distractChance *= 1.5;
     }
     
-    const shouldDistract = Math.random() < distractChance;
+    const shouldDistract = HumanErrorEngine.chance(distractChance, context);
     
     return {
       shouldDistract,
@@ -284,7 +302,7 @@ export class HumanImperfections {
       `Минуту, гляньте сюда`
     ];
     
-    return messages[Math.floor(Math.random() * messages.length)];
+    return HumanErrorEngine.choice(messages);
   }
 
   /**
@@ -306,13 +324,13 @@ export class HumanImperfections {
       badChoiceChance *= 0.6;
     }
     
-    const shouldMakeBadChoice = Math.random() < badChoiceChance;
+    const shouldMakeBadChoice = HumanErrorEngine.chance(badChoiceChance, context);
     
     if (shouldMakeBadChoice && choices.length > 1) {
       // Выбираем не оптимальный вариант
       const optimalIndex = 0; // Предполагаем что первый - оптимальный
       const suboptimalChoices = choices.filter((_, i) => i !== optimalIndex);
-      const chosen = suboptimalChoices[Math.floor(Math.random() * suboptimalChoices.length)];
+      const chosen = HumanErrorEngine.choice(suboptimalChoices);
       
       return {
         shouldMakeBadChoice: true,
@@ -331,7 +349,7 @@ export class HumanImperfections {
    * Без заготовленных фраз: модель получает ТИП ошибки и формулирует сама.
    */
   async generateMistakeReaction(mistakeType) {
-    const shouldReact = Math.random() < 0.7; // 70% шанс прокомментировать ошибку
+    const shouldReact = HumanErrorEngine.chance(0.7); // 70% шанс прокомментировать ошибку
     if (!shouldReact) return { shouldReact: false };
 
     // Человеческое описание ситуации ошибки (не готовая реплика, а суть).

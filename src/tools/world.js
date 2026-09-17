@@ -111,7 +111,7 @@ export function registerWorldTools(registry, { bot, worldState, aiProvider }) {
   // Осмотреться вокруг — что видно, рельеф, стороны света, ближайшие объекты.
   registry.register({
     name: 'look_around',
-    description: 'Look around and describe what the bot sees: facing direction, biome, terrain (mountains/water/forest) in each compass direction, and nearby entities with their side and distance. Use this to understand the surroundings before deciding where to go.',
+    description: 'Look around and describe everything the bot perceives right now: what is happening to it (taking damage, on fire, drowning, falling, low HP), facing direction, biome, terrain in each compass direction, the block it is aiming at, nearby ores, hazards (lava/fire), useful stations (crafting table, furnace, chest, bed, anvil...), and nearby entities with side and distance. Use to understand the full situation before acting.',
     parameters: { type: 'object', properties: {} },
     handler: async () => {
       try {

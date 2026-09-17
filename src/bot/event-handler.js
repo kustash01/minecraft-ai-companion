@@ -5,6 +5,12 @@ import { ConversationRouter } from '../social/conversation-router.js';
 import { FastPlayerIntentRouter, PlayerIntents } from '../control/fast-player-intent.js';
 import { adaptiveCamera } from '../behavior/adaptive-camera.js';
 import { LootProtectionManager } from '../behavior/loot-protection.js';
+import { HumanChatFlow } from '../behavior/human-chat-flow.js';
+import { AdrenalineController } from '../behavior/adrenaline-controller.js';
+import { AuditoryEngine } from '../behavior/auditory-engine.js';
+import { HotbarErgonomics } from '../behavior/hotbar-ergonomics.js';
+import { CombatMicroEngine } from '../behavior/combat-micro-engine.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('EVENT');
 
@@ -38,6 +44,7 @@ export class EventHandler {
       maxPublicResponders: config?.ai?.social?.maxPublicResponders || config?.social?.maxPublicResponders || 2,
     });
     this.lootProtection = options.lootProtection || (this.mcBot?.bot ? new LootProtectionManager(this.mcBot.bot) : null);
+    this.commitmentMemory = options.commitmentMemory || null;
     this._lootCheckInterval = null;
     this.boundBot = null;
     this.boundGeneration = null;
@@ -146,12 +153,19 @@ export class EventHandler {
         // 2. «Где ты / координаты» — НЕ отвечаем шаблонной строкой.
         // Пропускаем вопрос в AIBrain: он видит реальные координаты в контексте
         // [ЧТО Я ВИЖУ] и отвечает своими словами, как живой игрок.
+
+        // 2.5. Детектор «просьбы на потом» → запоминаем как обещание.
+        // Слова генерит LLM; здесь только фиксируем факт договорённости.
+        if (isOwner && this.commitmentMemory && /(потом|попозже|позже|не забудь|напомни|как освободишься|когда сможешь|на будущее)/i.test(lower)) {
+          try {
+            this.commitmentMemory.remember(message, { requestedBy: username, importance: 0.6 });
+          } catch (_) {}
+        }
+
         try {
           const reply = await this.aiBrain.processMessage(`[${username}]: ${message}`, this.worldState);
           if (reply && this.mcBot?.bot?.chat) {
-            const typingDelayMs = Math.min(1800, Math.max(300, reply.length * 28 + Math.floor(Math.random() * 120)));
-            await new Promise((r) => setTimeout(r, typingDelayMs));
-            this.mcBot.bot.chat(reply);
+            await HumanChatFlow.typeAndSend(this.mcBot.bot, reply);
             if (this.humanController) {
               this.humanController.processEvent('executed_player_command', {
                 speaker: username,
@@ -212,7 +226,7 @@ export class EventHandler {
 
                 if (response) {
                   // Человеческая задержка набора текста (печатает со скоростью обычного игрока)
-                  const typingDelayMs = Math.min(1800, Math.max(300, response.length * 28 + Math.floor(Math.random() * 120)));
+                  const typingDelayMs = Math.min(1800, Math.max(300, response.length * 28 + Math.floor(HumanErrorEngine.range(0, 120))));
                   await new Promise((r) => setTimeout(r, typingDelayMs));
 
                   if (this.agentInstance) {
@@ -277,7 +291,7 @@ export class EventHandler {
             isOwner: isOwner,
           });
           if (response) {
-            const typingDelayMs = Math.min(1800, Math.max(300, response.length * 28 + Math.floor(Math.random() * 120)));
+            const typingDelayMs = Math.min(1800, Math.max(300, response.length * 28 + Math.floor(HumanErrorEngine.range(0, 120))));
             await new Promise((r) => setTimeout(r, typingDelayMs));
             if (this.agentInstance) {
               await this.agentInstance.sendChat(response, { generation, recipientScope: routing, social: true });
@@ -319,7 +333,7 @@ export class EventHandler {
         if (response) {
           // Реалистичная задержка чтения и набора текста человеком
           if (!this.agentInstance) {
-            const typingDelayMs = Math.min(2200, Math.max(500, response.length * 35 + Math.floor(Math.random() * 250)));
+            const typingDelayMs = Math.min(2200, Math.max(500, response.length * 35 + Math.floor(HumanErrorEngine.range(0, 250))));
             await new Promise((r) => setTimeout(r, typingDelayMs));
           }
 
@@ -463,6 +477,40 @@ export class EventHandler {
       };
       bot.on('entityDead', this._entityDeadListener);
 
+      // Инициализация психофизиологических движков человека
+      if (!bot._adrenalineController) bot._adrenalineController = new AdrenalineController();
+      if (!bot._auditoryEngine) bot._auditoryEngine = new AuditoryEngine(bot, bot._adrenalineController);
+      if (!bot._hotbarErgonomics) bot._hotbarErgonomics = new HotbarErgonomics(bot, bot._adrenalineController);
+      if (!bot._combatMicroEngine) bot._combatMicroEngine = new CombatMicroEngine(bot, bot._adrenalineController);
+
+      this._soundEffectListener = (packet) => {
+        if (this.boundBot !== bot || this.boundGeneration !== generation) return;
+        try {
+          const soundName = packet?.soundName || packet?.sound || '';
+          const pos = {
+            x: (packet?.x ?? 0) / 8,
+            y: (packet?.y ?? 0) / 8,
+            z: (packet?.z ?? 0) / 8,
+          };
+          const volume = packet?.volume ?? 1.0;
+          const pitch = packet?.pitch ?? 1.0;
+          bot._auditoryEngine?.processSound(soundName, pos, volume, pitch);
+        } catch (_) {}
+      };
+      if (bot._client?.on) {
+        bot._client.on('sound_effect', this._soundEffectListener);
+      }
+
+      this._entityHurtListener = (entity) => {
+        if (this.boundBot !== bot || this.boundGeneration !== generation) return;
+        if (entity === bot.entity) {
+          bot._adrenalineController?.triggerDamage(2);
+        }
+      };
+      if (typeof bot.on === 'function') {
+        bot.on('entityHurt', this._entityHurtListener);
+      }
+
       // Фоновый мониторинг защиты лута и возврата вещей напарнику
       this._lootCheckInterval = setInterval(async () => {
         if (!this.boundBot || this.boundGeneration !== generation) return;
@@ -505,6 +553,14 @@ export class EventHandler {
     if (this.boundBot?.removeListener && this._entityDeadListener) {
       this.boundBot.removeListener('entityDead', this._entityDeadListener);
       this._entityDeadListener = null;
+    }
+    if (this.boundBot?._client?.removeListener && this._soundEffectListener) {
+      this.boundBot._client.removeListener('sound_effect', this._soundEffectListener);
+      this._soundEffectListener = null;
+    }
+    if (this.boundBot?.removeListener && this._entityHurtListener) {
+      this.boundBot.removeListener('entityHurt', this._entityHurtListener);
+      this._entityHurtListener = null;
     }
   }
 }

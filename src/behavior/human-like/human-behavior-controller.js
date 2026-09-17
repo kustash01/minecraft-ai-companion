@@ -6,6 +6,7 @@ import { MoodSystem } from './mood-system.js';
 import { PersonalGoalsSystem } from './personal-goals.js';
 import { HumanImperfections } from './human-imperfections.js';
 import { AFKSystem } from './afk-system.js';
+import { HumanErrorEngine } from '../human-error-engine.js';
 
 const logger = createLogger('HUMAN_BEHAVIOR');
 
@@ -93,7 +94,7 @@ export class HumanBehaviorController {
       const remembered = this.imperfections.checkRemembering();
       if (remembered.remembered) {
         // 60% шанс сказать что вспомнил
-        if (Math.random() < 0.6) {
+        if (HumanErrorEngine.chance(0.6)) {
           await this._sendMessage(remembered.message);
         }
       }

@@ -1,4 +1,5 @@
 import { createLogger } from '../../utils/logger.js';
+import { HumanErrorEngine } from '../human-error-engine.js';
 
 const logger = createLogger('TYPING_SIMULATOR');
 
@@ -57,7 +58,7 @@ export class TypingSimulator {
    */
   async processMessage(message) {
     // Проверяем отвлечение
-    if (Math.random() < this.distractionChance) {
+    if (HumanErrorEngine.chance(this.distractionChance, this.profile)) {
       // Отвлекся - не отправляет сообщение
       logger.debug(`[${this.profile.name}] Отвлекся, сообщение не отправлено`);
       return { finalMessage: null, delay: 0, interrupted: true };
@@ -67,7 +68,7 @@ export class TypingSimulator {
     let finalMessage = this._addTypos(message);
     
     // Иногда исправляем опечатки
-    if (finalMessage !== message && Math.random() < 0.6) {
+    if (finalMessage !== message && HumanErrorEngine.chance(0.6, this.profile)) {
       finalMessage = this._addCorrection(message, finalMessage);
     }
 
@@ -88,7 +89,7 @@ export class TypingSimulator {
     
     // Проверяем каждое слово
     for (let i = 0; i < words.length; i++) {
-      if (Math.random() < this.typoChance && words[i].length > 3) {
+      if (HumanErrorEngine.chance(this.typoChance, this.profile) && words[i].length > 3) {
         words[i] = this._makeTypo(words[i]);
       }
     }
@@ -109,9 +110,9 @@ export class TypingSimulator {
       'wrong'      // Неправильная буква (соседняя на клавиатуре)
     ];
     
-    const type = typoTypes[Math.floor(Math.random() * typoTypes.length)];
+    const type = HumanErrorEngine.choice(typoTypes);
     const chars = word.split('');
-    const pos = 1 + Math.floor(Math.random() * (chars.length - 2)); // Не первая и не последняя
+    const pos = Math.floor(HumanErrorEngine.range(1, chars.length - 1.01)); // Не первая и не последняя
     
     switch (type) {
       case 'swap':
@@ -176,7 +177,7 @@ export class TypingSimulator {
     
     const neighbors = ruKeyboard[char.toLowerCase()];
     if (neighbors && neighbors.length > 0) {
-      return neighbors[Math.floor(Math.random() * neighbors.length)];
+      return HumanErrorEngine.choice(neighbors);
     }
     
     return char;
@@ -187,16 +188,14 @@ export class TypingSimulator {
    */
   _addCorrection(original, typo) {
     // Варианты исправления:
-    // 1. "*правильное слово" (самый частый)
-    // 2. "опечатка* правильное" 
-    // 3. Просто переотправить правильную версию
+    // 1. "*правильное слово" (самый частый, 60%)
+    // 2. "опечатка* правильное" (20%)
+    // 3. Оставляем с опечаткой (20%)
     
-    const correctionType = Math.random();
-    
-    if (correctionType < 0.6) {
+    if (HumanErrorEngine.chance(0.6, this.profile)) {
       // Исправление через *
       return `${typo}\n*${original}`;
-    } else if (correctionType < 0.8) {
+    } else if (HumanErrorEngine.chance(0.5, this.profile)) {
       // Просто правильная версия
       return original;
     } else {
@@ -217,13 +216,13 @@ export class TypingSimulator {
     
     // Добавляем случайную вариацию ±30%
     const variation = 0.3;
-    delay = delay * (1 + (Math.random() * 2 - 1) * variation);
+    delay = delay * (1 + HumanErrorEngine.jitter(variation, this.profile));
     
     // Минимум 500мс, максимум 10сек
     delay = Math.max(500, Math.min(10000, delay));
     
     // Добавляем "время на раздумье" перед отправкой
-    const thinkTime = 200 + Math.random() * 800; // 200-1000мс
+    const thinkTime = HumanErrorEngine.range(200, 1000, this.profile); // 200-1000мс
     
     return Math.round(delay + thinkTime);
   }
@@ -234,7 +233,7 @@ export class TypingSimulator {
    */
   startTyping() {
     // 10% шанс что начал печатать и передумал
-    return Math.random() > 0.1;
+    return !HumanErrorEngine.chance(0.1, this.profile);
   }
 
   /**

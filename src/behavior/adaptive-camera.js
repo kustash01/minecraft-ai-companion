@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { HumanErrorEngine } from './human-error-engine.js';
 
 const logger = createLogger('ADAPTIVE_CAMERA');
 
@@ -111,8 +112,8 @@ export class AdaptiveCamera {
           const easedT = smoothstep(t);
 
           // Человеческое легкое дрожание руки (только в середине движения)
-          const jitterYaw = addJitter && i < steps ? (Math.random() - 0.5) * 0.015 : 0;
-          const jitterPitch = addJitter && i < steps ? (Math.random() - 0.5) * 0.015 : 0;
+          const jitterYaw = addJitter && i < steps ? HumanErrorEngine.jitter(0.0075, bot) : 0;
+          const jitterPitch = addJitter && i < steps ? HumanErrorEngine.jitter(0.0075, bot) : 0;
 
           const stepYaw = currentYaw + diffYaw * easedT + jitterYaw;
           const stepPitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, currentPitch + diffPitch * easedT + jitterPitch));

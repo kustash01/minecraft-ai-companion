@@ -1,6 +1,7 @@
 import { createLogger } from '../utils/logger.js';
 import { combatAI } from '../combat/combat-ai.js';
 import { bodyLanguage } from '../behavior/body-language.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('MOVEMENT_CONTROLLER');
 
@@ -23,9 +24,13 @@ export class MovementController {
    * @param {string} options.agentName
    * @param {Object} options.bot
    */
-  constructor({ agentName, bot = null }) {
+  constructor({ agentName, bot = null, moodProvider = null }) {
     this.agentName = agentName;
     this.bot = bot;
+    // Optional callback returning the current mood ({ arousal, valence, ... }).
+    // When absent, movement uses neutral energy — keeps tests and headless
+    // usage working unchanged.
+    this.moodProvider = moodProvider;
     this.mode = 'idle'; // 'idle' | 'following' | 'moving_to' | 'waiting' | 'combat'
     this.targetPlayer = null;
     this.followDistance = 3;
@@ -52,7 +57,7 @@ export class MovementController {
     this.commandRevision = 0;
 
     this.formation = FORMATION_PROFILES[agentName] || {
-      angleOffset: (Math.random() - 0.5) * Math.PI,
+      angleOffset: HumanErrorEngine.range(-Math.PI / 2, Math.PI / 2),
       baseDist: 3.5,
       jitterRate: 0.3,
       role: 'follower',
@@ -61,6 +66,37 @@ export class MovementController {
     if (bot) {
       this.attachBot(bot);
     }
+  }
+
+  /**
+   * Derive movement modifiers from the current mood. Returns neutral values
+   * when no mood provider is attached. Pure numbers — never injects speech.
+   *   energy: 0.4 (tired/bored/sad) .. 1.6 (excited/happy)  — scales sprint-jump
+   *           frequency and idle liveliness.
+   *   tension: 0..1 (stress/fear)  — makes the bot keep closer and look around
+   *           more, wander/get distracted less.
+   */
+  _moodFactors() {
+    let energy = 1;
+    let tension = 0;
+    try {
+      const m = this.moodProvider?.();
+      if (m) {
+        // arousal 0..1 (calm..excited), valence -1..1 (negative..positive)
+        const arousal = typeof m.arousal === 'number' ? m.arousal : 0.5;
+        const valence = typeof m.valence === 'number' ? m.valence : 0;
+        // Energy rises with arousal and positive mood; drops when tired/down.
+        energy = 0.6 + arousal * 0.6 + Math.max(0, valence) * 0.4;
+        if (typeof m.fatigue === 'number') energy -= m.fatigue * 0.35;
+        if (typeof m.boredom === 'number') energy -= m.boredom * 0.2;
+        energy = Math.max(0.4, Math.min(1.6, energy));
+        // Tension from fear/stress (negative + aroused).
+        const fear = typeof m.fear === 'number' ? m.fear : 0;
+        const stress = typeof m.stress === 'number' ? m.stress : 0;
+        tension = Math.max(0, Math.min(1, Math.max(fear, stress, arousal * Math.max(0, -valence))));
+      }
+    } catch (_) {}
+    return { energy, tension };
   }
 
   /**
@@ -300,6 +336,10 @@ export class MovementController {
     const now = Date.now();
     this._trackProgress(now);
 
+    // Mood → movement (pure numbers, no speech). Energy scales liveliness;
+    // tension makes the bot cling closer and fidget less.
+    const { energy, tension } = this._moodFactors();
+
     // 1. АВТОМАТИЧЕСКОЕ ВСПЛЫТИЕ В ВОДЕ (Защита от утопления)
     const blockAtFeet = typeof this.bot.blockAt === 'function' ? this.bot.blockAt(this.bot.entity.position) : null;
     const inLiquid = this.bot.entity.isInWater || (blockAtFeet && blockAtFeet.name?.includes('water'));
@@ -316,12 +356,15 @@ export class MovementController {
         this._updateFormationGoal();
       }
 
-      // Спринт и jump-sprint если игрок уходит далеко (> 6 блоков) и НЕ включен режим темноты
+      // Спринт и jump-sprint если игрок уходит далеко. Порог дистанции сжимается
+      // при напряжении (жмётся ближе), частота прыжков растёт с энергией.
       const player = this.bot.players?.[this.targetPlayer]?.entity
         || Object.entries(this.bot.players || {}).find(([name]) => name.toLowerCase() === String(this.targetPlayer).toLowerCase())?.[1]?.entity;
-      if (!this.isDarkCaution && player && this.bot.entity.position.distanceTo(player.position) > 6) {
+      const sprintDist = 6 - tension * 2.5; // tense → sprint to catch up sooner
+      if (!this.isDarkCaution && player && this.bot.entity.position.distanceTo(player.position) > sprintDist) {
         this.bot.setControlState('sprint', true);
-        if (this.bot.entity.onGround && Math.random() < 0.35 && now - this.lastHopTime > 1100) {
+        const hopChance = Math.max(0.05, Math.min(0.6, 0.35 * energy)); // tired → fewer hops
+        if (this.bot.entity.onGround && HumanErrorEngine.chance(hopChance, this.bot) && now - this.lastHopTime > 1100) {
           this.lastHopTime = now;
           this.bot.setControlState('jump', true);
           setTimeout(() => this.bot?.setControlState?.('jump', false), 200);
@@ -343,14 +386,20 @@ export class MovementController {
         }
       }
 
-      const lookInterval = this.isDarkCaution ? 1800 : 4000;
+      // Livelier when energetic, calmer when tired; more alert when tense.
+      let lookInterval = this.isDarkCaution ? 1800 : 4000;
+      lookInterval = Math.round(lookInterval / Math.max(0.5, energy));
+      if (tension > 0.5) lookInterval = Math.min(lookInterval, 2200);
       if (now - this.lastIdleLook > lookInterval) {
-        this.lastIdleLook = now + (this.isDarkCaution ? (Math.random() * 800 - 400) : (Math.random() * 2000 - 1000));
-        // В темноте осматриваемся шире и внимательнее
-        const jitterRate = this.isDarkCaution ? 0.75 : this.formation.jitterRate;
-        if (Math.random() < jitterRate && typeof this.bot.look === 'function') {
-          const yawAngle = this.isDarkCaution ? (Math.random() * 1.6 - 0.8) : (Math.random() * 0.8 - 0.4);
-          const pitchAngle = this.isDarkCaution ? (-0.3 + (Math.random() * 0.5)) : (Math.random() * 0.4 - 0.2);
+        const offset = this.isDarkCaution ? HumanErrorEngine.range(-400, 400, this.bot) : HumanErrorEngine.range(-1000, 1000, this.bot);
+        this.lastIdleLook = now + offset;
+        // В темноте/напряжении осматриваемся шире и внимательнее
+        let jitterRate = this.isDarkCaution ? 0.75 : this.formation.jitterRate;
+        jitterRate = Math.min(0.9, jitterRate * energy + tension * 0.3);
+        if (HumanErrorEngine.chance(jitterRate, this.bot) && typeof this.bot.look === 'function') {
+          const wide = this.isDarkCaution || tension > 0.5;
+          const yawAngle = wide ? HumanErrorEngine.jitter(0.8, this.bot) : HumanErrorEngine.jitter(0.4, this.bot);
+          const pitchAngle = wide ? (-0.3 + HumanErrorEngine.range(0, 0.5, this.bot)) : HumanErrorEngine.range(-0.2, 0.2, this.bot);
           const yaw = this.bot.entity.yaw + yawAngle;
           this.bot.look(yaw, pitchAngle, true).catch(() => {});
         }
@@ -361,8 +410,8 @@ export class MovementController {
   _chooseNearbyGoal(center, radius) {
     const candidates = [{ ...center }];
     for (let i = 0; i < 6; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const distance = 0.8 + Math.random() * radius;
+      const angle = (i / 6) * Math.PI * 2 + HumanErrorEngine.jitter(0.2, this.bot);
+      const distance = 0.8 + HumanErrorEngine.range(0, radius, this.bot);
       candidates.push({
         x: center.x + Math.cos(angle) * distance,
         y: center.y,

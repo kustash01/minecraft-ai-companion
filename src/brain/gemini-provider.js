@@ -30,7 +30,7 @@ export class GeminiProvider extends AIProvider {
   /**
    * Создаёт чат-сессию с Gemini.
    */
-  async createChat({ systemPrompt, tools } = {}) {
+  async createChat({ systemPrompt, tools, history } = {}) {
     try {
       const chatConfig = {};
       if (systemPrompt) {
@@ -41,11 +41,17 @@ export class GeminiProvider extends AIProvider {
       }
       chatConfig.temperature = this.config?.ai?.temperature ?? 0.85;
 
-      // ai.chats.create возвращает объект синхронно (не Promise)
-      const chat = this.ai.chats.create({
+      const createParams = {
         model: this.model,
         config: chatConfig,
-      });
+      };
+      // Перенос истории при пересоздании сессии (для tool tiering)
+      if (Array.isArray(history) && history.length > 0) {
+        createParams.history = history;
+      }
+
+      // ai.chats.create возвращает объект синхронно (не Promise)
+      const chat = this.ai.chats.create(createParams);
 
       logger.debug('Чат-сессия Gemini создана');
       return chat;
@@ -53,6 +59,24 @@ export class GeminiProvider extends AIProvider {
       logger.error(`Ошибка создания чат-сессии Gemini: ${error.message}`);
       throw error;
     }
+  }
+
+  /**
+   * Пересоздаёт чат-сессию с новым набором инструментов, сохраняя историю диалога.
+   * Нужно для tool tiering: когда бот вызвал get_tools, надо расширить доступные
+   * инструменты в текущем ходу, не потеряв контекст (парность function-call/response).
+   */
+  async recreateChatWithTools(session, { systemPrompt, tools } = {}) {
+    let history = [];
+    try {
+      // getHistory(false) возвращает полную историю (comprehensive), включая function calls/responses
+      if (session && typeof session.getHistory === 'function') {
+        history = session.getHistory(false);
+      }
+    } catch (error) {
+      logger.warn(`Не удалось извлечь историю для пересоздания сессии: ${error.message}`);
+    }
+    return this.createChat({ systemPrompt, tools, history });
   }
 
   async _sendWithRetry(session, payload, options = {}) {

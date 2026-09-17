@@ -30,6 +30,8 @@ export class AIBrain {
     this.budgetManager = options.budgetManager || null;
     this.agentName = options.agentName || 'unknown';
     this.actionAdmission = options.actionAdmission || null;
+    this.fidgetController = options.fidgetController || null;
+    this.bot = options.bot || null;
     this.session = null;
     this.maxIterations = 10;
     this.processTimeout = 25000; // 25 секунд макс таймаут
@@ -47,6 +49,16 @@ export class AIBrain {
     this.rateLimiter = new RateLimiter(maxRequests, windowMs);
 
     logger.info('AI Brain инициализирован (State: IDLE, activeRequests: 0)');
+  }
+
+  setBot(bot) {
+    this.bot = bot;
+    if (this.fidgetController) this.fidgetController.setBot(bot);
+  }
+
+  setFidgetController(fidgetController) {
+    this.fidgetController = fidgetController;
+    if (this.bot && fidgetController) fidgetController.setBot(this.bot);
   }
 
   getState() {
@@ -101,6 +113,7 @@ export class AIBrain {
     this.activeRequests = 1;
     this.isProcessing = true;
     this.state = AgentAIState.THINKING;
+    this.fidgetController?.startThinking(this.bot);
     this.currentAbortController = new AbortController();
     const requestController = this.currentAbortController;
 
@@ -171,6 +184,7 @@ export class AIBrain {
       telemetry.enterLocalMode(this.agentName);
       return null;
     } finally {
+      this.fidgetController?.stopThinking();
       if (this.budgetManager && budgetGranted) this.budgetManager.releaseSlot(this.agentName);
       // Only the owning request may clear the in-flight state (prevents stale requests
       // completing after cancellation from corrupting a newer request's counters).
@@ -267,7 +281,7 @@ export class AIBrain {
         systemPrompt,
         tools,
       });
-      logger.info('Новая AI-сессия создана');
+      logger.info(`Новая AI-сессия создана (tools: ${tools.length})`);
     }
 
     this.state = AgentAIState.WAITING_API;
@@ -324,6 +338,14 @@ export class AIBrain {
         try {
           logger.info(`[ACTION] Выполняю: ${tc.name}(${JSON.stringify(tc.args)})`);
           const result = await this.toolRegistry.execute(tc.name, tc.args || {});
+
+          if (tc.name === 'run_code' && result && result.success === false) {
+            logger.warn(`[SELF_HEALING] Ошибка в скрипте: ${result.error}. Передаю диагностику для автоисправления.`);
+            if (!result.instruction) {
+              result.instruction = 'Внимание: в твоём скрипте возникла ошибка. Проанализируй диагностику и исправь её, вызвав run_code с исправленным кодом в этом же ходе.';
+            }
+          }
+
           toolResults.push({ id: tc.id, name: tc.name, result });
         } catch (error) {
           logger.error(`[ACTION] Ошибка ${tc.name}: ${error.message}`);

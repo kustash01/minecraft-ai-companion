@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('AUTONOMOUS_GOALS');
 
@@ -119,7 +120,7 @@ export class AutonomousGoals {
     }
 
     // Случайность — не каждую проверку выбираем цель
-    if (Math.random() > 0.3) { // 30% шанс
+    if (!HumanErrorEngine.chance(0.3)) { // 30% шанс
       return false;
     }
 
@@ -138,21 +139,12 @@ export class AutonomousGoals {
       return null;
     }
 
-    // Взвешенный случайный выбор по приоритету
-    const totalPriority = possible.reduce((sum, g) => sum + g.priority, 0);
-    let random = Math.random() * totalPriority;
-
-    for (const goal of possible) {
-      random -= goal.priority;
-      if (random <= 0) {
-        this.currentGoal = goal;
-        this.goalStartTime = Date.now();
-        logger.info(`[${this.agentName}] Выбрал автономную цель: ${goal.name}`);
-        return goal;
-      }
-    }
-
-    return possible[0];
+    // Взвешенный случайный выбор по приоритету через HumanErrorEngine
+    const chosenGoal = HumanErrorEngine.weightedChoice(possible, g => g.priority) || possible[0];
+    this.currentGoal = chosenGoal;
+    this.goalStartTime = Date.now();
+    logger.info(`[${this.agentName}] Выбрал автономную цель: ${chosenGoal.name}`);
+    return chosenGoal;
   }
 
   /**

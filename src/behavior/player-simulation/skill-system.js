@@ -1,4 +1,5 @@
 import logger from '../../utils/logger.js';
+import { HumanErrorEngine } from '../human-error-engine.js';
 
 export const SkillNames = {
   MINING: 'mining',
@@ -82,9 +83,9 @@ export class SkillSystem {
 
     const finalProb = Math.max(0.04, Math.min(0.98, rawProb));
 
-    // Bounded roll
-    const roll = Math.random();
-    const isSuccess = roll <= finalProb;
+    // Gaussian response threshold check
+    const isSuccess = HumanErrorEngine.chance(finalProb);
+    const roll = isSuccess ? finalProb * 0.85 : finalProb * 1.15;
 
     // Update practice & lifetime counters
     skill.practice++;

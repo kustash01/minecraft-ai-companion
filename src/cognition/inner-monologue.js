@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('INNER_MONOLOGUE');
 
@@ -156,7 +157,7 @@ ${physState?.stress > 0.5 ? 'Напряжён' : ''}
     const unspokenThoughts = this.currentThoughts.filter(t => !t.spoken);
     if (unspokenThoughts.length === 0) return false;
 
-    return Math.random() < 0.1;
+    return HumanErrorEngine.chance(0.1);
   }
 
   /**
@@ -166,7 +167,7 @@ ${physState?.stress > 0.5 ? 'Напряжён' : ''}
     const unspoken = this.currentThoughts.filter(t => !t.spoken);
     if (unspoken.length === 0) return null;
 
-    const thought = unspoken[Math.floor(Math.random() * unspoken.length)];
+    const thought = HumanErrorEngine.choice(unspoken);
     thought.spoken = true;
     this.lastSpokeThoughtTime = Date.now();
 

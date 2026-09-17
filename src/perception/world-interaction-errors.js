@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('WORLD_INTERACTION_ERRORS');
 
@@ -94,7 +95,7 @@ export class WorldInteractionErrors {
     }
 
     // Проверяем промах
-    if (Math.random() < missChance) {
+    if (HumanErrorEngine.chance(missChance, this.emotions)) {
       errors.missed = true;
       errors.details = {
         type: 'miss',
@@ -104,18 +105,18 @@ export class WorldInteractionErrors {
     }
 
     // Проверяем отказ щита
-    if (action === 'block' && Math.random() < shieldChance) {
+    if (action === 'block' && HumanErrorEngine.chance(shieldChance, this.emotions)) {
       errors.shieldFailed = true;
       errors.details = {
         type: 'shieldFail',
         description: 'Щит не спас',
         severity: 'moderate',
-        damage: Math.floor(Math.random() * 3) + 1, // 1-3 урона
+        damage: Math.round(HumanErrorEngine.range(1, 3, this.emotions)), // 1-3 урона
       };
     }
 
     // Критический промах (очень редко)
-    if (Math.random() < this.combatErrors.critFail) {
+    if (HumanErrorEngine.chance(this.combatErrors.critFail, this.emotions)) {
       errors.crit = true;
       errors.details = {
         type: 'critFail',
@@ -156,10 +157,10 @@ export class WorldInteractionErrors {
     }
 
     // Проверяем - ломит не тот блок
-    if (action === 'mine' && Math.random() < wrongBlockChance) {
+    if (action === 'mine' && HumanErrorEngine.chance(wrongBlockChance, this.emotions)) {
       errors.wrongBlock = true;
       const blocks = ['stone', 'dirt', 'gravel', 'sand', 'oak_log'];
-      const wrongBlock = blocks[Math.floor(Math.random() * blocks.length)];
+      const wrongBlock = HumanErrorEngine.choice(blocks);
 
       errors.details = {
         type: 'wrongBlock',
@@ -170,10 +171,10 @@ export class WorldInteractionErrors {
     }
 
     // Проверяем - ставит блок не туда
-    if (action === 'place' && Math.random() < placementChance) {
+    if (action === 'place' && HumanErrorEngine.chance(placementChance, this.emotions)) {
       errors.wrongPlacement = true;
       const directions = ['left', 'right', 'forward', 'backward', 'up', 'down'];
-      const wrong = directions[Math.floor(Math.random() * directions.length)];
+      const wrong = HumanErrorEngine.choice(directions);
 
       errors.details = {
         type: 'wrongPlacement',
@@ -184,7 +185,7 @@ export class WorldInteractionErrors {
     }
 
     // Проверяем - клик мимо
-    if (Math.random() < clickChance) {
+    if (HumanErrorEngine.chance(clickChance, this.emotions)) {
       errors.clickMissed = true;
       errors.details = {
         type: 'clickMiss',
@@ -224,10 +225,10 @@ export class WorldInteractionErrors {
     }
 
     // Выронить предмет
-    if (Math.random() < dropChance) {
+    if (HumanErrorEngine.chance(dropChance, this.emotions)) {
       errors.dropped = true;
       const items = ['diamond', 'iron_ingot', 'stick', 'apple', 'gold_nugget'];
-      const dropped = items[Math.floor(Math.random() * items.length)];
+      const dropped = HumanErrorEngine.choice(items);
 
       errors.details = {
         type: 'itemDrop',
@@ -238,7 +239,7 @@ export class WorldInteractionErrors {
     }
 
     // Неправильный предмет
-    if (action === 'use_item' && Math.random() < wrongItemChance) {
+    if (action === 'use_item' && HumanErrorEngine.chance(wrongItemChance, this.emotions)) {
       errors.wrongItem = true;
       errors.details = {
         type: 'wrongItem',
@@ -248,7 +249,7 @@ export class WorldInteractionErrors {
     }
 
     // Неправильный слот
-    if (Math.random() < wrongSlotChance) {
+    if (HumanErrorEngine.chance(wrongSlotChance, this.emotions)) {
       errors.wrongSlot = true;
       errors.details = {
         type: 'wrongSlot',
@@ -288,10 +289,10 @@ export class WorldInteractionErrors {
     }
 
     // Пошёл в неправильную сторону
-    if (Math.random() < directionChance) {
+    if (HumanErrorEngine.chance(directionChance, this.emotions)) {
       errors.wrongDirection = true;
       const directions = ['левую', 'правую', 'противоположную'];
-      const wrong = directions[Math.floor(Math.random() * directions.length)];
+      const wrong = HumanErrorEngine.choice(directions);
 
       errors.details = {
         type: 'wrongDirection',
@@ -301,18 +302,18 @@ export class WorldInteractionErrors {
     }
 
     // Упал и получил урон
-    if (context.hasHeight && Math.random() < fallChance) {
+    if (context.hasHeight && HumanErrorEngine.chance(fallChance, this.emotions)) {
       errors.fell = true;
       errors.details = {
         type: 'fallDamage',
         description: 'Упал и получил урон',
         severity: 'moderate',
-        damage: Math.floor(Math.random() * 4) + 1, // 1-4 урона
+        damage: Math.round(HumanErrorEngine.range(1, 4, this.emotions)), // 1-4 урона
       };
     }
 
     // Запутался в паутине
-    if (context.hasWeb && Math.random() < stuckChance) {
+    if (context.hasWeb && HumanErrorEngine.chance(stuckChance, this.emotions)) {
       errors.stuck = true;
       errors.details = {
         type: 'stickyWeb',
@@ -350,7 +351,7 @@ export class WorldInteractionErrors {
     }
 
     // Открыл не тот сундук/NPC
-    if (Math.random() < targetChance) {
+    if (HumanErrorEngine.chance(targetChance, this.emotions)) {
       errors.wrongTarget = true;
       errors.details = {
         type: 'wrongTarget',
@@ -360,7 +361,7 @@ export class WorldInteractionErrors {
     }
 
     // Неправильное время (слишком рано/поздно)
-    if (Math.random() < timingChance) {
+    if (HumanErrorEngine.chance(timingChance, this.emotions)) {
       errors.wrongTiming = true;
       errors.details = {
         type: 'wrongTiming',
@@ -388,7 +389,7 @@ export class WorldInteractionErrors {
       'Совсем не туда ударил',
       'Уклонился враг',
     ];
-    return descriptions[Math.floor(Math.random() * descriptions.length)];
+    return HumanErrorEngine.choice(descriptions);
   }
 
   /**

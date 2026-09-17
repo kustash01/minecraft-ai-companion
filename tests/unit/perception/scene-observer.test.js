@@ -84,4 +84,87 @@ describe('SceneObserver', () => {
   it('returns null for an unspawned bot', () => {
     expect(new SceneObserver().observe({})).toBeNull();
   });
+
+  it('detects nearby ore, hazards and stations (step-1 scan, no skipping)', () => {
+    // Flat ground at y=63. Place point objects at odd offsets that a coarse
+    // step-2 scan would have skipped, to guard against the regression.
+    const heightFn = () => 63;
+    const topBlock = (x, z, y) => {
+      if (x === 3 && z === 0) return 'iron_ore';
+      if (x === 5 && z === 2) return 'diamond_ore';
+      if (x === 2 && z === -2) return 'lava';
+      if (x === -3 && z === 1) return 'furnace';
+      if (x === -4 && z === 1) return 'crafting_table';
+      return 'stone';
+    };
+    const bot = makeMockBot({ heightFn, topBlock });
+    const scene = new SceneObserver().observe(bot);
+    const oreNames = scene.nearby.ores.map(o => o.name);
+    expect(oreNames).toContain('iron_ore');
+    expect(oreNames).toContain('diamond_ore');
+    expect(scene.nearby.hazards.map(h => h.name)).toContain('lava');
+    const stationNames = scene.nearby.stations.map(s => s.name);
+    expect(stationNames).toContain('furnace');
+    expect(stationNames).toContain('crafting_table');
+  });
+
+  it('reports self-status: on fire, low HP', () => {
+    const bot = makeMockBot({});
+    bot.health = 5;
+    bot.entity.metadata = { 0: 0x01 }; // on-fire bit
+    bot.entity.velocity = { x: 0, y: 0, z: 0 };
+    bot.entity.onGround = true;
+    const scene = new SceneObserver().observe(bot);
+    expect(scene.status).toContain('горю');
+    expect(scene.status.some(s => s.includes('мало здоровья'))).toBe(true);
+  });
+
+  it('detects taking damage via HP drop between observes', () => {
+    const observer = new SceneObserver();
+    const bot = makeMockBot({});
+    bot.health = 20;
+    observer.observe(bot); // establishes baseline
+    bot.health = 14;       // took 6 damage
+    const scene = observer.observe(bot);
+    expect(scene.status.some(s => s.includes('урон'))).toBe(true);
+  });
+
+  it('observes light levels, celestial time/weather, metabolism and player attention', () => {
+    const observer = new SceneObserver();
+    const bot = makeMockBot({});
+    bot.world = {
+      getBlockLight: () => 0,
+      getSkyLight: () => 15,
+    };
+    bot.time = { timeOfDay: 12500 }; // sunset
+    bot.isRaining = true;
+    bot.thunderState = 1; // thunderstorm
+    bot.food = 4; // critical hunger
+    bot.entities = {
+      player1: {
+        type: 'player',
+        username: 'kustash01',
+        position: { x: 0, y: 64, z: -3 }, // 3m in front of bot
+        yaw: 0,
+        pitch: 0,
+        heldItem: { name: 'diamond_sword' },
+        crouching: true,
+      }
+    };
+
+    const scene = observer.observe(bot);
+    expect(scene.light.blockLight).toBe(0);
+    expect(scene.celestial.timeDesc).toContain('закат');
+    expect(scene.celestial.isThundering).toBe(true);
+    expect(scene.metabolism.food).toBe(4);
+
+    const desc = observer.describe(scene);
+    expect(desc).toContain('полная тьма');
+    expect(desc).toContain('гроза с молниями');
+    expect(desc).toContain('закат');
+    expect(desc).toContain('Критический голод');
+    expect(desc).toContain('kustash01');
+    expect(desc).toContain('diamond_sword');
+    expect(desc).toContain('приседает');
+  });
 });

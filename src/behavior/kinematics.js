@@ -1,8 +1,6 @@
 import { createLogger } from '../utils/logger.js';
-
-const logger = createLogger('KINEMATICS');
-
 import { adaptiveCamera } from './adaptive-camera.js';
+import { HumanErrorEngine } from './human-error-engine.js';
 
 /**
  * KinematicsEngine — естественная человеческая моторика, жесты,
@@ -20,9 +18,9 @@ export class KinematicsEngine {
     for (let i = 0; i < times; i++) {
       try {
         bot.setControlState('sneak', true);
-        await new Promise(r => setTimeout(r, 120 + Math.random() * 60));
+        await new Promise(r => setTimeout(r, HumanErrorEngine.range(120, 180)));
         bot.setControlState('sneak', false);
-        await new Promise(r => setTimeout(r, 100 + Math.random() * 50));
+        await new Promise(r => setTimeout(r, HumanErrorEngine.range(100, 150)));
       } catch (e) {}
     }
   }

@@ -1,4 +1,5 @@
 import { createLogger } from '../../utils/logger.js';
+import { HumanErrorEngine } from '../human-error-engine.js';
 
 const logger = createLogger('NATURAL_MISTAKES');
 
@@ -56,7 +57,7 @@ export class NaturalMistakeSystem {
     }
 
     // Делаем ошибку?
-    if (Math.random() < mistakeChance) {
+    if (HumanErrorEngine.chance(mistakeChance, context?.bot || this.emotions?.getMood())) {
       const mistake = this._generateMistake(action, mistakeType, context);
       this._recordMistake(mistake);
 
@@ -75,7 +76,7 @@ export class NaturalMistakeSystem {
     if (!mistake) return null;
 
     // Не всегда комментируем ошибку (60% шанс)
-    if (Math.random() > 0.6) {
+    if (!HumanErrorEngine.chance(0.6, this.emotions?.getMood())) {
       return null;
     }
 
@@ -141,7 +142,7 @@ export class NaturalMistakeSystem {
       },
     ];
 
-    return motorMistakeTypes[Math.floor(Math.random() * motorMistakeTypes.length)];
+    return HumanErrorEngine.choice(motorMistakeTypes);
   }
 
   /**
@@ -181,7 +182,7 @@ export class NaturalMistakeSystem {
       },
     ];
 
-    return cognitiveMistakeTypes[Math.floor(Math.random() * cognitiveMistakeTypes.length)];
+    return HumanErrorEngine.choice(cognitiveMistakeTypes);
   }
 
   /**
@@ -215,7 +216,7 @@ export class NaturalMistakeSystem {
       },
     ];
 
-    return socialMistakeTypes[Math.floor(Math.random() * socialMistakeTypes.length)];
+    return HumanErrorEngine.choice(socialMistakeTypes);
   }
 
   /**
@@ -249,7 +250,7 @@ export class NaturalMistakeSystem {
       },
     ];
 
-    return planningMistakeTypes[Math.floor(Math.random() * planningMistakeTypes.length)];
+    return HumanErrorEngine.choice(planningMistakeTypes);
   }
 
   /**
@@ -288,7 +289,7 @@ export class NaturalMistakeSystem {
     // Выбираем только триггернутые ошибки
     const triggered = emotionalMistakeTypes.filter(m => m.trigger);
     if (triggered.length > 0) {
-      return triggered[Math.floor(Math.random() * triggered.length)];
+      return HumanErrorEngine.choice(triggered);
     }
 
     return emotionalMistakeTypes[0]; // Fallback
@@ -436,7 +437,7 @@ export class NaturalMistakeSystem {
     }
 
     // Обучение на ошибке
-    if (this.learnFromMistakes && Math.random() < this.learningRate) {
+    if (this.learnFromMistakes && HumanErrorEngine.chance(this.learningRate)) {
       this._learnFromMistake(mistake);
     }
 

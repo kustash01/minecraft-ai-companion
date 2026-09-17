@@ -1,3 +1,5 @@
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
+
 const clamp01 = (value, fallback = 0) => Number.isFinite(value)
   ? Math.max(0, Math.min(1, value))
   : fallback;
@@ -35,7 +37,7 @@ export const AppraisalAction = ACTION;
  * goals, needs, obligations and character remain the primary causes.
  */
 export class EventAppraisalEngine {
-  constructor({ profile = {}, random = Math.random, now = () => Date.now() } = {}) {
+  constructor({ profile = {}, random = () => HumanErrorEngine.range(0, 1), now = () => Date.now() } = {}) {
     this.profile = profile;
     this.random = random;
     this.now = now;

@@ -78,4 +78,26 @@ describe('MemoryManager and LongTermMemory', () => {
     expect(context).toContain('Дом');
     expect(context).toContain('строим замок');
   });
+
+  it('should save, search, and recall free-form human notes in memory context', () => {
+    memory.rememberNote('нашел каньон с лавой на (150, 20, -50), там полно редстоуна');
+    memory.rememberNote('kustash01 попросил не трогать сундук с зельями');
+
+    const notes = memory.getNotes();
+    expect(notes).toHaveLength(2);
+
+    const found = memory.searchNotes('зельями');
+    expect(found).toHaveLength(1);
+    expect(found[0].content).toContain('сундук с зельями');
+
+    const context = memory.getMemoryContext();
+    expect(context).toContain('[МОИ МЫСЛИ И ЗАМЕТКИ]');
+    expect(context).toContain('каньон с лавой');
+    expect(context).toContain('не трогать сундук');
+
+    memory.forgetNote('зельями');
+    const remaining = memory.getNotes();
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].content).toContain('каньон с лавой');
+  });
 });

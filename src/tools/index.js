@@ -17,8 +17,12 @@ import { registerRidingCombatTools } from './riding-combat.js';
 import { registerStationTools } from './station.js';
 import { registerBrewingTools } from './brewing.js';
 import { registerWorldInteractionTools } from './world-interaction.js';
+import { registerCodeActionTools } from './code-action-tools.js';
 
 export function registerAllTools(registry, deps) {
+  // Универсальный запуск JS-кода и библиотека навыков (Code-as-Action)
+  registerCodeActionTools(registry, deps);
+
   registerMovementTools(registry, deps);
   registerWorldTools(registry, deps);
   registerInventoryTools(registry, deps);

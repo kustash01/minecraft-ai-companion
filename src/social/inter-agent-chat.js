@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('INTER_AGENT_CHAT');
 
@@ -54,7 +55,7 @@ export class InterAgentChat {
     
     // Add jitter (±20%)
     const jitter = delay * 0.2;
-    delay = delay + (Math.random() * jitter * 2 - jitter);
+    delay = delay + HumanErrorEngine.jitter(jitter);
     
     // Clamp between 500ms and 8000ms
     delay = Math.max(500, Math.min(8000, delay));

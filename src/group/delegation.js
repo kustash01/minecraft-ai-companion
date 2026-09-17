@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('DELEGATION');
 
@@ -119,7 +120,7 @@ export class DelegationManager {
     forgetProbability -= (delegation.reminderCount * 0.15);
     forgetProbability = Math.max(0, Math.min(0.95, forgetProbability)); // cap between 0 and 95%
     
-    return Math.random() > forgetProbability;
+    return !HumanErrorEngine.chance(forgetProbability);
   }
 
   checkDeferredTasks() {
@@ -133,7 +134,7 @@ export class DelegationManager {
         logger.info(`[${this.agentName}] Вспомнил отложенную задачу: ${del.task}`);
       } else {
         // Chance to forget permanently
-        if (Math.random() < 0.1) { // 10% chance to forget when checked
+        if (HumanErrorEngine.chance(0.1)) { // 10% chance to forget when checked
           this.forget(del.id);
         }
       }

@@ -55,9 +55,30 @@ export function configurePathfinder(bot) {
     if (configuredPathfinder.has(bot)) return true;
     if (!bot.pathfinder) return false;
     const defaultMove = new Movements(bot);
-    defaultMove.canDig = true;
+    // Human-like locomotion:
+    // - don't tunnel through terrain on a normal walk (looks robotic & wrecks the
+    //   world); only dig when there is genuinely no way around.
+    // - sprint on open ground and allow parkour jumps so movement looks natural,
+    //   not a slow forced shuffle.
+    defaultMove.canDig = false;
     defaultMove.allow1by1towers = true;
+    if ('allowSprinting' in defaultMove) defaultMove.allowSprinting = true;
+    if ('allowParkour' in defaultMove) defaultMove.allowParkour = true;
     bot.pathfinder.setMovements(defaultMove);
+
+    // collectBlock uses its OWN Movements profile and calls setMovements() every
+    // time it mines, which would otherwise wipe our sprint/parkour tuning. Give
+    // it a matching human-like profile (but let it dig — mining IS its job).
+    try {
+      if (bot.collectBlock && bot.collectBlock.movements) {
+        const cm = bot.collectBlock.movements;
+        cm.canDig = true; // mining requires digging
+        cm.allow1by1towers = true;
+        if ('allowSprinting' in cm) cm.allowSprinting = true;
+        if ('allowParkour' in cm) cm.allowParkour = true;
+      }
+    } catch (_) {}
+
     configuredPathfinder.add(bot);
     logger.info('[BOT] Configured pathfinder movements');
     return true;

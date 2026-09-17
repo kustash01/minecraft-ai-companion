@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('HUMAN_CHAT');
 
@@ -130,21 +131,17 @@ export class HumanChatBehavior {
     const words = text.split(' ');
 
     // Слова-паразиты в начале (редко!)
-    if (Math.random() < this.speechPatterns.fillerChance && words.length > 3) {
-      const filler = this.speechPatterns.fillers[
-        Math.floor(Math.random() * this.speechPatterns.fillers.length)
-      ];
+    if (HumanErrorEngine.chance(this.speechPatterns.fillerChance) && words.length > 3) {
+      const filler = HumanErrorEngine.choice(this.speechPatterns.fillers);
       text = filler + ', ' + text;
     }
 
     // Неуверенность
-    if (Math.random() < this.speechPatterns.uncertaintyChance) {
-      const uncertain = this.speechPatterns.uncertainty[
-        Math.floor(Math.random() * this.speechPatterns.uncertainty.length)
-      ];
+    if (HumanErrorEngine.chance(this.speechPatterns.uncertaintyChance)) {
+      const uncertain = HumanErrorEngine.choice(this.speechPatterns.uncertainty);
 
       // Добавляем в начало или конец
-      if (Math.random() < 0.5) {
+      if (HumanErrorEngine.coinFlip() > 0) {
         text = uncertain + ' ' + text;
       } else {
         text = text + ' ' + uncertain;
@@ -152,15 +149,13 @@ export class HumanChatBehavior {
     }
 
     // Недосказанность (иногда)
-    if (Math.random() < this.speechPatterns.trailingChance) {
+    if (HumanErrorEngine.chance(this.speechPatterns.trailingChance)) {
       // Убираем последнее слово или добавляем многоточие
-      if (words.length > 4 && Math.random() < 0.3) {
+      if (words.length > 4 && HumanErrorEngine.chance(0.3)) {
         words.pop();
         text = words.join(' ') + '...';
       } else {
-        const trailing = this.speechPatterns.trailingOff[
-          Math.floor(Math.random() * this.speechPatterns.trailingOff.length)
-        ];
+        const trailing = HumanErrorEngine.choice(this.speechPatterns.trailingOff);
         text = text + trailing;
       }
     }
@@ -172,10 +167,10 @@ export class HumanChatBehavior {
    * Добавляет естественные сокращения
    */
   _addContractions(text) {
-    if (Math.random() > this.speechPatterns.contractionChance) return text;
+    if (!HumanErrorEngine.chance(this.speechPatterns.contractionChance)) return text;
 
     for (const [full, short] of Object.entries(this.speechPatterns.contractions)) {
-      if (text.includes(full) && Math.random() < 0.6) {
+      if (text.includes(full) && HumanErrorEngine.chance(0.6)) {
         text = text.replace(full, short);
         break; // Только одно сокращение
       }
@@ -191,20 +186,20 @@ export class HumanChatBehavior {
     const words = text.split(' ');
 
     // Пропуск последней буквы
-    if (Math.random() < this.typoPatterns.endings && words.length > 2) {
-      const idx = Math.floor(Math.random() * words.length);
+    if (HumanErrorEngine.chance(this.typoPatterns.endings) && words.length > 2) {
+      const idx = Math.floor(HumanErrorEngine.range(0, words.length - 0.01));
       if (words[idx].length > 3) {
         words[idx] = words[idx].slice(0, -1);
       }
     }
 
     // Опечатка на клавиатуре (очень редко)
-    if (Math.random() < 0.02) {
-      const idx = Math.floor(Math.random() * words.length);
+    if (HumanErrorEngine.chance(0.02)) {
+      const idx = Math.floor(HumanErrorEngine.range(0, words.length - 0.01));
       const word = words[idx];
 
       for (const [correct, typo] of Object.entries(this.typoPatterns.keyboard)) {
-        if (word.includes(correct) && Math.random() < 0.5) {
+        if (word.includes(correct) && HumanErrorEngine.chance(0.5)) {
           words[idx] = word.replace(correct, typo);
           break;
         }
@@ -212,8 +207,8 @@ export class HumanChatBehavior {
     }
 
     // Пропуск пробела между короткими словами
-    if (Math.random() < this.typoPatterns.spaceMissing && words.length > 3) {
-      const idx = Math.floor(Math.random() * (words.length - 1));
+    if (HumanErrorEngine.chance(this.typoPatterns.spaceMissing) && words.length > 3) {
+      const idx = Math.floor(HumanErrorEngine.range(0, words.length - 1.01));
       if (words[idx].length <= 3 && words[idx + 1].length <= 4) {
         words[idx] = words[idx] + words[idx + 1];
         words.splice(idx + 1, 1);
@@ -221,11 +216,11 @@ export class HumanChatBehavior {
     }
 
     // Повтор буквы
-    if (Math.random() < this.typoPatterns.doubleChar) {
-      const idx = Math.floor(Math.random() * words.length);
+    if (HumanErrorEngine.chance(this.typoPatterns.doubleChar)) {
+      const idx = Math.floor(HumanErrorEngine.range(0, words.length - 0.01));
       const word = words[idx];
       if (word.length > 3) {
-        const pos = Math.floor(Math.random() * (word.length - 1));
+        const pos = Math.floor(HumanErrorEngine.range(0, word.length - 1.01));
         words[idx] = word.slice(0, pos) + word[pos] + word.slice(pos);
       }
     }
@@ -242,18 +237,17 @@ export class HumanChatBehavior {
     // Если вопрос — думаем перед ответом
     if (isQuestion) {
       const { min, max } = this.timings.thinkBeforeAnswer;
-      delay += min + Math.random() * (max - min);
+      delay += HumanErrorEngine.range(min, max);
     }
 
     // Задержка на "печатание"
-    const typingSpeed = this.timings.typingSpeed.min +
-                        Math.random() * (this.timings.typingSpeed.max - this.timings.typingSpeed.min);
+    const typingSpeed = HumanErrorEngine.range(this.timings.typingSpeed.min, this.timings.typingSpeed.max);
     delay += message.length * typingSpeed;
 
     // Случайная пауза (отвлёкся)
-    if (Math.random() < this.timings.pauseInTyping) {
+    if (HumanErrorEngine.chance(this.timings.pauseInTyping)) {
       const { min, max } = this.timings.pauseDuration;
-      delay += min + Math.random() * (max - min);
+      delay += HumanErrorEngine.range(min, max);
     }
 
     // Личность влияет на скорость
@@ -278,20 +272,20 @@ export class HumanChatBehavior {
     if (speaker === agentName) return false;
 
     // Прямое упоминание — почти всегда отвечаем
-    if (mentioned) return Math.random() < 0.92;
+    if (mentioned) return HumanErrorEngine.chance(0.92);
 
     // Вопрос к группе — иногда отвечаем
     if (isQuestion) {
       // Если уже кто-то ответил — скорее всего молчим
-      if (recentlySpokeCount > 1) return Math.random() < 0.1;
+      if (recentlySpokeCount > 1) return HumanErrorEngine.chance(0.1);
 
-      return Math.random() < 0.25; // 25% шанс ответить на групповой вопрос
+      return HumanErrorEngine.chance(0.25); // 25% шанс ответить на групповой вопрос
     }
 
     // Обычное сообщение — редко комментируем
-    if (recentlySpokeCount > 0) return Math.random() < 0.03;
+    if (recentlySpokeCount > 0) return HumanErrorEngine.chance(0.03);
 
-    return Math.random() < 0.08; // 8% шанс поддержать беседу
+    return HumanErrorEngine.chance(0.08); // 8% шанс поддержать беседу
   }
 
   /**
@@ -305,13 +299,13 @@ export class HumanChatBehavior {
     if (silenceDuration < 600000) {
       const baseChance = 0.003; // 0.3%
       const personalityBonus = (personality.talkativeness || 0.5) * 0.002;
-      return Math.random() < (baseChance + personalityBonus);
+      return HumanErrorEngine.chance(baseChance + personalityBonus);
     }
 
     // Больше 10 минут — низкий шанс
     const baseChance = 0.01; // 1%
     const personalityBonus = (personality.talkativeness || 0.5) * 0.01;
-    return Math.random() < (baseChance + personalityBonus);
+    return HumanErrorEngine.chance(baseChance + personalityBonus);
   }
 }
 

@@ -2,6 +2,7 @@ import { createLogger } from '../utils/logger.js';
 import { KinematicsEngine } from './kinematics.js';
 import { HumanMotor } from './human-motor.js';
 import { CampLifeEngine } from './camp-life.js';
+import { HumanErrorEngine } from './human-error-engine.js';
 import minecraftData from 'minecraft-data';
 
 const logger = createLogger('AUTONOMOUS_LIFE');
@@ -216,7 +217,7 @@ export class AutonomousLifeEngine {
     if (nearby.length === 0) return;
     const scored = nearby.map((position) => ({
       position,
-      score: Math.random() + bot.entity.position.distanceTo(position) / 56,
+      score: HumanErrorEngine.range(0, 1) + bot.entity.position.distanceTo(position) / 56,
     })).sort((a, b) => b.score - a.score);
     const target = scored[0].position;
     this.lastActivityAt = Date.now();

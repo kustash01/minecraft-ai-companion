@@ -1,4 +1,5 @@
 import { createLogger } from '../../utils/logger.js';
+import { HumanErrorEngine } from '../human-error-engine.js';
 
 const logger = createLogger('PERSONAL_GOALS');
 
@@ -105,15 +106,14 @@ export class PersonalGoalsSystem {
     );
     
     // Выбираем 1-2 новые цели
-    const numGoals = Math.random() < 0.3 ? 2 : 1;
+    const numGoals = HumanErrorEngine.chance(0.3, this.profile) ? 2 : 1;
     const selectedGoals = [];
     
     for (let i = 0; i < numGoals && filteredGoals.length > 0; i++) {
       // Выбираем с учетом приоритета
-      const weighted = filteredGoals.map(g => ({ ...g, weight: g.priority * Math.random() }));
-      weighted.sort((a, b) => b.weight - a.weight);
+      const goal = HumanErrorEngine.weightedChoice(filteredGoals, g => g.priority);
+      if (!goal) break;
       
-      const goal = weighted[0];
       selectedGoals.push({
         ...goal,
         startedAt: Date.now(),
@@ -122,7 +122,7 @@ export class PersonalGoalsSystem {
       
       // Удаляем выбранную цель из списка
       const idx = filteredGoals.findIndex(g => g.type === goal.type && g.target === goal.target);
-      filteredGoals.splice(idx, 1);
+      if (idx !== -1) filteredGoals.splice(idx, 1);
     }
     
     this.currentGoals.push(...selectedGoals);
@@ -171,7 +171,7 @@ export class PersonalGoalsSystem {
     const initiativeTrait = this.profile.traits?.initiative || 0.5;
     probability *= (0.5 + initiativeTrait);
     
-    const shouldInitiate = Math.random() < probability;
+    const shouldInitiate = HumanErrorEngine.chance(probability, this.profile);
     
     if (shouldInitiate) {
       this.lastInitiativeTime = Date.now();
@@ -190,7 +190,7 @@ export class PersonalGoalsSystem {
     
     // Предложить свою личную цель как групповую
     if (this.currentGoals.length > 0) {
-      const goal = this.currentGoals[Math.floor(Math.random() * this.currentGoals.length)];
+      const goal = HumanErrorEngine.choice(this.currentGoals);
       proposalTypes.push({
         type: 'personal_goal',
         proposal: `А может ${goal.description}?`,
@@ -202,7 +202,7 @@ export class PersonalGoalsSystem {
     proposalTypes.push({
       type: 'exploration',
       proposal: 'Может пошарим в той стороне? Вроде там что-то интересное было',
-      details: { direction: ['на север', 'на юг', 'на запад', 'на восток'][Math.floor(Math.random() * 4)] }
+      details: { direction: HumanErrorEngine.choice(['на север', 'на юг', 'на запад', 'на восток']) }
     });
     
     // Предложить строительство
@@ -210,7 +210,7 @@ export class PersonalGoalsSystem {
       proposalTypes.push({
         type: 'building',
         proposal: 'Кстати, давно хотел построить что-то крутое. Может вместе замутим?',
-        details: { what: ['башню', 'дом', 'ферму', 'мост'][Math.floor(Math.random() * 4)] }
+        details: { what: HumanErrorEngine.choice(['башню', 'дом', 'ферму', 'мост']) }
       });
     }
     
@@ -249,7 +249,7 @@ export class PersonalGoalsSystem {
     }
     
     // Выбираем случайное предложение
-    const selected = proposalTypes[Math.floor(Math.random() * proposalTypes.length)];
+    const selected = HumanErrorEngine.choice(proposalTypes);
     
     return selected;
   }
@@ -278,7 +278,7 @@ export class PersonalGoalsSystem {
       this.currentGoals.splice(index, 1);
       
       // Может упомянуть о выполнении цели (30% шанс)
-      return Math.random() < 0.3 ? {
+      return HumanErrorEngine.chance(0.3, this.profile) ? {
         shouldMention: true,
         message: `Кстати, я ${goal.description} наконец-то`
       } : { shouldMention: false };
@@ -323,7 +323,7 @@ export class PersonalGoalsSystem {
     }
     
     // Решение
-    const agrees = Math.random() < agreeChance;
+    const agrees = HumanErrorEngine.chance(agreeChance, this.profile);
     
     return {
       agrees,

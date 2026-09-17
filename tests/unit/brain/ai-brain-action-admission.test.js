@@ -5,6 +5,7 @@ describe('AIBrain action admission', () => {
   it('does not execute a valid tool while the agent runtime owns an action', async () => {
     const toolRegistry = {
       getFunctionDeclarations: () => [],
+      getAll: () => [{ name: 'wait', description: 'wait', parameters: { type: 'object', properties: {} } }],
       get: () => ({ name: 'wait', parameters: { type: 'object', properties: {} } }),
       execute: vi.fn(),
     };

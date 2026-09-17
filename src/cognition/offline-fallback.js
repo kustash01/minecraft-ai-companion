@@ -1,4 +1,5 @@
 import logger from '../utils/logger.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const clamp01 = (value, fallback = 0.5) => {
   const number = Number(value);
@@ -24,7 +25,7 @@ const mergeRecords = (...records) => Object.assign({}, ...records.filter((record
 
 /** Deterministic intention selection while the language model is offline. */
 export class OfflineFallbackEngine {
-  constructor({ profile = {}, random = Math.random } = {}) {
+  constructor({ profile = {}, random = () => HumanErrorEngine.range(0, 1) } = {}) {
     this.profile = profile;
     this.random = random;
     this.isOfflineMode = false;

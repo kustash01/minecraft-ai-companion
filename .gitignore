@@ -17,6 +17,9 @@ Thumbs.db
 opencode.json
 .opencode/
 .claude/
+.agents/
+CLAUDE.md
+ORIGINAL_REQUEST.md
 .serena/
 .mcp.json
 

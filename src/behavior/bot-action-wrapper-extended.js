@@ -1,5 +1,6 @@
 import { WorldInteractionErrorsExtended } from '../perception/world-interaction-errors-extended.js';
 import vec3 from 'vec3';
+import { HumanErrorEngine } from './human-error-engine.js';
 
 /**
  * Расширенный wrapper для действий бота - ОЧЕНЬ МНОГО механик ошибок!
@@ -51,7 +52,7 @@ export class BotActionWrapperExtended {
     if (combatErrors) {
       // Человеческий промах: рука дернулась или ударил в воздух
       if (this.bot?.entity && typeof this.bot.look === 'function') {
-        const jitterYaw = (Math.random() > 0.5 ? 0.14 : -0.14);
+        const jitterYaw = (HumanErrorEngine.coinFlip() ? 0.14 : -0.14);
         this.bot.look(this.bot.entity.yaw + jitterYaw, this.bot.entity.pitch, true).catch(() => {});
       }
       if (typeof this.bot?.swingArm === 'function') {
@@ -82,9 +83,9 @@ export class BotActionWrapperExtended {
       if (buildErrors && block?.position && typeof this.bot?.blockAt === 'function') {
         // Человеческая заминка: ударил по соседнему блоку на долю секунды
         const nearbyPos = block.position.offset(
-          Math.floor(Math.random() * 3) - 1,
+          Math.floor(HumanErrorEngine.range(-1, 2)),
           0,
-          Math.floor(Math.random() * 3) - 1
+          Math.floor(HumanErrorEngine.range(-1, 2))
         );
         const adjacentBlock = this.bot.blockAt(nearbyPos);
         if (adjacentBlock && adjacentBlock !== block && typeof this.bot.lookAt === 'function') {
@@ -113,10 +114,10 @@ export class BotActionWrapperExtended {
     const buildErrors = this.errorSystem?.checkBuildingErrors?.('place', { referenceBlock });
 
     try {
-      if (buildErrors && Math.random() < 0.35) {
+      if (buildErrors && HumanErrorEngine.chance(0.35)) {
         // Установка не на ту грань (легкий промах)
         const validFaces = [vec3(0, 1, 0), vec3(0, -1, 0), vec3(1, 0, 0), vec3(-1, 0, 0), vec3(0, 0, 1), vec3(0, 0, -1)];
-        const alternativeFace = validFaces[Math.floor(Math.random() * validFaces.length)];
+        const alternativeFace = HumanErrorEngine.choice(validFaces);
         return await this.bot.placeBlock(referenceBlock, alternativeFace);
       }
       return await this.bot.placeBlock(referenceBlock, direction);

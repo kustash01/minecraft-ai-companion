@@ -2,6 +2,7 @@ import { createLogger } from '../utils/logger.js';
 import { WorldInteractionErrors } from '../perception/world-interaction-errors.js';
 import { ThreatKnowledge } from '../perception/game-knowledge.js';
 import { HumanTradeoffs } from '../behavior/human-tradeoffs.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('COMBAT_AI');
 
@@ -218,9 +219,9 @@ export class TacticalCombatAI {
         await bot.equip(bow, 'hand');
       }
 
-      // Check combat error system for bow aim
-      let jitterYaw = (Math.random() - 0.5) * 0.06;
-      let jitterPitch = (Math.random() - 0.5) * 0.04;
+      // Check combat error system for bow aim with natural tremor
+      let jitterYaw = HumanErrorEngine.jitter(0.03, bot);
+      let jitterPitch = HumanErrorEngine.jitter(0.02, bot);
 
       if (this.errorSystem) {
         const combatErrors = this.errorSystem.checkCombatErrors('attack', {
@@ -228,8 +229,8 @@ export class TacticalCombatAI {
           isMoving: bot?.entity?.velocity?.length() > 0,
         });
         if (combatErrors.missed) {
-          jitterYaw += (Math.random() > 0.5 ? 0.18 : -0.18);
-          jitterPitch += (Math.random() > 0.5 ? 0.12 : -0.12);
+          jitterYaw += HumanErrorEngine.coinFlip() * 0.18;
+          jitterPitch += HumanErrorEngine.coinFlip() * 0.12;
         }
       }
 
@@ -275,9 +276,9 @@ export class TacticalCombatAI {
     try {
       const aimOffset = target.height ? target.height * 0.75 : 1.5;
       await bot.lookAt(target.position.offset(0, aimOffset, 0), true);
-      if (Math.random() < 0.25 && bot.entity && typeof bot.look === 'function') {
-        const jitterYaw = (Math.random() - 0.5) * 0.04;
-        const jitterPitch = (Math.random() - 0.5) * 0.03;
+      if (HumanErrorEngine.chance(0.25, bot) && bot.entity && typeof bot.look === 'function') {
+        const jitterYaw = HumanErrorEngine.jitter(0.02, bot);
+        const jitterPitch = HumanErrorEngine.jitter(0.015, bot);
         bot.look(bot.entity.yaw + jitterYaw, bot.entity.pitch + jitterPitch, true).catch(() => {});
       }
     } catch (e) {}
@@ -529,7 +530,7 @@ export class TacticalCombatAI {
               if (combatErrors.missed) {
                 logger.debug(`[${this.agentName}] Промахнулся в ближнем бою!`);
                 if (bot.entity && typeof bot.look === 'function') {
-                  bot.look(bot.entity.yaw + (Math.random() > 0.5 ? 0.12 : -0.12), bot.entity.pitch, true).catch(() => {});
+                  bot.look(bot.entity.yaw + (HumanErrorEngine.coinFlip() * 0.12), bot.entity.pitch, true).catch(() => {});
                 }
                 return true;
               }

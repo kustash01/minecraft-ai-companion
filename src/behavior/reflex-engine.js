@@ -26,6 +26,21 @@ export class ReflexEngine {
     this.lastClutchTime = 0;
     this.lastShiftResponseTime = 0;
     this.playerSneakCounts = new Map(); // username -> { count, lastTime }
+    this.emergencyHandler = options.emergencyHandler || null;
+  }
+
+  setEmergencyHandler(handler) {
+    this.emergencyHandler = handler;
+  }
+
+  _triggerEmergency(reason) {
+    if (typeof this.emergencyHandler === 'function') {
+      try {
+        this.emergencyHandler(reason);
+      } catch (err) {
+        logger.warn(`Ошибка emergencyHandler: ${err.message}`);
+      }
+    }
   }
 
   /**
@@ -118,6 +133,7 @@ export class ReflexEngine {
 
     if (distToGround <= 2.2) {
       this.lastClutchTime = Date.now();
+      this._triggerEmergency('Падение с опасной высоты (MLG Water Clutch)');
       logger.info('[REFLEX] Срабатывает MLG Water Clutch!');
       try {
         await this.bot.equip(waterBucket, 'hand');
@@ -160,7 +176,8 @@ export class ReflexEngine {
 
     if (dangerousCreeper) {
       this.lastShieldTime = Date.now();
-      logger.info(`[REFLEX] Крипер в опасной близости (${myPos.distanceTo(dangerousCreeper.position).toFixed(1)}m)! Защита щитом.`);
+      this._triggerEmergency(`Крипер в опасной близости (${myPos.distanceTo(dangerousCreeper.position).toFixed(1)}m)`);
+      logger.info(`[REFLEX] Крипер в опасной близости (${myPos.distanceTo(dangerousCreeper.position).toFixed(1)}м)! Защита щитом.`);
 
       // Экстренный флик камеры в сторону крипера
       await adaptiveCamera.emergencyFlickTo(this.bot, dangerousCreeper.position.offset(0, 1.2, 0));
@@ -205,6 +222,7 @@ export class ReflexEngine {
     const waterBucket = items.find((i) => i.name === 'water_bucket');
     if (waterBucket && Date.now() - this.lastClutchTime > 3000) {
       this.lastClutchTime = Date.now();
+      this._triggerEmergency('Возгорание или попадание в лаву');
       logger.info('[REFLEX] Возгорание! Тушение ведром воды.');
       try {
         await this.bot.equip(waterBucket, 'hand');
@@ -222,6 +240,7 @@ export class ReflexEngine {
     if (!this.bot?.entity?.position || !this.bot.blockAt) return;
     const eyeBlock = this.bot.blockAt(this.bot.entity.position.offset(0, 1.6, 0));
     if (eyeBlock && ['sand', 'gravel', 'concrete_powder'].includes(eyeBlock.name)) {
+      this._triggerEmergency(`Осыпался блок ${eyeBlock.name} (удушье)`);
       logger.info(`[REFLEX] Осыпался блок ${eyeBlock.name}! Спасаемся от удушья.`);
       this.bot.setControlState('jump', true);
       setTimeout(() => this.bot.setControlState('jump', false), 250);
@@ -281,6 +300,7 @@ export class ReflexEngine {
       // "На грани": здоровья мало (<= 6 хп = 3 сердца) — следующий сильный удар
       // добьёт. Это порог СМЕРТЕЛЬНОГО удара, а не тактики.
       if (hp > 6) return;
+      this._triggerEmergency(`Критический урон (hp=${hp})`);
 
       // Тотем уже в оффхенде? Ничего не делаем.
       if (this.bot.inventory?.slots?.[45]?.name === 'totem_of_undying') return;

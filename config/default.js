@@ -20,6 +20,9 @@ export const config = {
       ? process.env.AI_ENABLED === 'true'
       : (process.env.AI_PROVIDER || 'ollama').toLowerCase() === 'ollama',
     provider: process.env.AI_PROVIDER || 'ollama',
+    // Chat creativity. Lower = calmer, more natural; higher = wilder/cringier.
+    // 0.6 keeps replies human without theatrical over-acting.
+    temperature: parseFloat(process.env.AI_TEMPERATURE || '0.6'),
     model: process.env.AI_MODEL || 'qwen2.5:3b',
     fallbackOnTimeout: process.env.AI_FALLBACK_ON_ERROR !== 'false',
     geminiApiKey: process.env.GEMINI_API_KEY,

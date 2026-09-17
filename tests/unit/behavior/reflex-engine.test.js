@@ -86,4 +86,22 @@ describe('ReflexEngine', () => {
     // Bot should have crouched in return
     expect(setControlState).toHaveBeenCalledWith('sneak', true);
   });
+
+  it('triggers emergencyHandler (Spinal Reflex Abort) when danger is detected', async () => {
+    const emergencyHandler = vi.fn();
+    const bot = {
+      entity: { position: vec3(0, 64, 0), yaw: 0, pitch: 0, height: 1.6 },
+      entities: {
+        10: { name: 'creeper', position: vec3(1, 64, 1) },
+      },
+      inventory: { items: () => [], slots: {} },
+      setControlState: vi.fn(),
+      clearControlStates: vi.fn(),
+    };
+
+    const reflex = new ReflexEngine(bot, { emergencyHandler });
+    await reflex._checkCreeperDanger();
+
+    expect(emergencyHandler).toHaveBeenCalledWith(expect.stringMatching(/Крипер в опасной близости/));
+  });
 });

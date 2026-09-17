@@ -24,10 +24,23 @@ export class MemoryManager {
   getMemoryContext(currentPos = null, query = null) {
     const parts = [];
 
+    // 0. Свободные мысли, заметки и впечатления (Stream of Thoughts)
+    try {
+      if (typeof this.longTerm.getRecentNotes === 'function') {
+        const notes = this.longTerm.getRecentNotes(6);
+        if (notes.length > 0) {
+          parts.push('[МОИ МЫСЛИ И ЗАМЕТКИ]');
+          for (const n of notes) {
+            parts.push(`• ${n.content}`);
+          }
+        }
+      }
+    } catch (_) {}
+
     // 1. Известные POI
     const allPois = this.pois.getPOIs();
     if (allPois.length > 0) {
-      parts.push('[ИЗВЕСТНЫЕ МЕСТА / POI]');
+      parts.push('\n[ИЗВЕСТНЫЕ МЕСТА / POI]');
       for (const poi of allPois.slice(0, 5)) {
         parts.push(`• ${poi.name} (${poi.type}): [${Math.round(poi.x)}, ${Math.round(poi.y)}, ${Math.round(poi.z)}] ${poi.notes ? '- ' + poi.notes : ''}`);
       }
@@ -63,6 +76,23 @@ export class MemoryManager {
     }
 
     return parts.join('\n');
+  }
+
+  // Свободная память
+  rememberNote(content, tags = '', importance = 5) {
+    return this.longTerm.addNote(content, tags, importance);
+  }
+
+  getNotes(limit = 10) {
+    return this.longTerm.getRecentNotes(limit);
+  }
+
+  searchNotes(query, limit = 5) {
+    return this.longTerm.searchNotes(query, limit);
+  }
+
+  forgetNote(idOrSubstring) {
+    return this.longTerm.deleteNote(idOrSubstring);
   }
 
   search(query = '', limit = 3) {

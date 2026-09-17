@@ -1,5 +1,6 @@
 import { createLogger } from '../utils/logger.js';
 import { humanChatBehavior } from './human-chat-behavior.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('SPONTANEOUS_EXPRESSION');
 
@@ -67,7 +68,7 @@ export class SpontaneousExpression {
     }
 
     // Случайность — основа естественности
-    if (Math.random() > speakChance) {
+    if (!HumanErrorEngine.chance(speakChance, emotion)) {
       return null; // Молчание
     }
 

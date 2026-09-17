@@ -1,5 +1,6 @@
 import { WorldInteractionErrors } from '../perception/world-interaction-errors.js';
 import vec3 from 'vec3';
+import { HumanErrorEngine } from './human-error-engine.js';
 
 /**
  * Wrapper для действий бота - добавляет реалистичные ошибки
@@ -25,7 +26,7 @@ export class BotActionWrapper {
       if (buildErrors.wrongPlacement) {
         console.log(`❌ ${this.agentName}: ${buildErrors.details.description}`);
         const validFaces = [vec3(0, 1, 0), vec3(0, -1, 0), vec3(1, 0, 0), vec3(-1, 0, 0), vec3(0, 0, 1), vec3(0, 0, -1)];
-        const alternativeFace = validFaces[Math.floor(Math.random() * validFaces.length)];
+        const alternativeFace = HumanErrorEngine.choice(validFaces);
         return await this.bot.placeBlock(referenceBlock, alternativeFace);
       }
 
@@ -52,7 +53,7 @@ export class BotActionWrapper {
       if (buildErrors.wrongBlock) {
         console.log(`❌ ${this.agentName}: ${buildErrors.details.description}`);
         // Ломаем соседний блок
-        const nearby = this.bot.blockAt(block.position.offset(Math.floor(Math.random()*3)-1, 0, Math.floor(Math.random()*3)-1));
+        const nearby = this.bot.blockAt(block.position.offset(Math.floor(HumanErrorEngine.range(-1, 2)), 0, Math.floor(HumanErrorEngine.range(-1, 2))));
         if (nearby && typeof this.bot.dig === 'function') return await this.bot.dig(nearby);
       }
 
@@ -109,9 +110,9 @@ export class BotActionWrapper {
       console.log(`❌ ${this.agentName}: ${navErrors.details.description}`);
       // Идём в неправильную сторону
       const wrongTarget = {
-        x: target.x + (Math.random() > 0.5 ? 5 : -5),
+        x: target.x + (HumanErrorEngine.coinFlip() ? 5 : -5),
         y: target.y,
-        z: target.z + (Math.random() > 0.5 ? 5 : -5),
+        z: target.z + (HumanErrorEngine.coinFlip() ? 5 : -5),
       };
       // Пытаемся туда идти
     }

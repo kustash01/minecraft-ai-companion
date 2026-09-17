@@ -1,4 +1,5 @@
 import logger from '../../utils/logger.js';
+import { HumanErrorEngine as CoreHumanErrorEngine } from '../human-error-engine.js';
 
 export class HumanErrorEngine {
   constructor() {
@@ -18,7 +19,7 @@ export class HumanErrorEngine {
     let slipProb = 0.04 + (stress * 0.1) + (isRushing ? 0.05 : 0.0);
     slipProb = Math.min(0.25, slipProb);
 
-    if (Math.random() < slipProb) {
+    if (CoreHumanErrorEngine.chance(slipProb, context)) {
       this.lapseCount++;
       const lapses = [
         { type: 'wrong_hotbar_slot', message: 'Ой, не тот слот достал!', recovery: 'swap_to_correct_slot' },
@@ -27,7 +28,7 @@ export class HumanErrorEngine {
         { type: 'fleeting_enderman_gaze', message: 'Чёрт, случайно на эндермена глянул!', recovery: 'panic_find_water' },
       ];
 
-      const selected = lapses[Math.floor(Math.random() * lapses.length)];
+      const selected = CoreHumanErrorEngine.choice(lapses);
       logger.info(`[HUMAN ERROR] Natural lapse triggered: ${selected.type}`);
       return {
         hasLapse: true,

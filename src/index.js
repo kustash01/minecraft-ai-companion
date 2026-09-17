@@ -32,6 +32,9 @@ import { EnvironmentInfluence } from './perception/environment-influence.js';
 import { MovementController } from './control/movement-controller.js';
 import { ReflexEngine } from './behavior/reflex-engine.js';
 import { LootProtectionManager } from './behavior/loot-protection.js';
+import { ActionSandbox } from './actions/action-sandbox.js';
+import { SkillLibrary } from './skills/skill-library.js';
+import { fidgetController } from './behavior/fidget-controller.js';
 
 const logger = createLogger('MAIN');
 
@@ -68,6 +71,8 @@ class MinecraftAICompanion {
     this.personalityHabits = null;
     this.environmentInfluence = null;
     this.movementController = null;
+    this.skillLibrary = null;
+    this.actionSandbox = null;
   }
 
   /**
@@ -110,6 +115,10 @@ class MinecraftAICompanion {
       logger.info('3/7. Инициализация реестра инструментов и планировщика...');
       this.toolRegistry = new ToolRegistry();
       this.contextManager = new ContextManager(config);
+      // Память об обещаниях/договорённостях (живая память, без новой БД).
+      const { CommitmentMemory } = await import('./memory/commitment-memory.js');
+      this.commitmentMemory = new CommitmentMemory(this.memoryManager);
+      this.contextManager.setCommitmentMemory(this.commitmentMemory);
       this.aiBrain = new AIBrain(config, this.toolRegistry, this.contextManager, aiProvider, this.memoryManager);
       this.planner = new Planner(this.memoryManager, this.toolRegistry, this.aiBrain);
       this.cognitiveEngine = new CognitiveEngine({
@@ -151,9 +160,20 @@ class MinecraftAICompanion {
 
       // Даём мозгу «глаза»: контекст-менеджер теперь видит мир от первого лица.
       this.contextManager.setBot(this.mcBot.bot);
+      this.aiBrain.setBot(this.mcBot.bot);
+      this.aiBrain.setFidgetController(fidgetController);
 
-      // 6. Регистрация всех инструментов
-      logger.info('5/7. Регистрация инструментов...');
+      // 6. Регистрация всех инструментов (включая Code-as-Action песочницу и навыки)
+      logger.info('5/7. Регистрация инструментов и песочницы...');
+      this.skillLibrary = new SkillLibrary();
+      this.actionSandbox = new ActionSandbox({
+        bot: this.mcBot.bot,
+        worldState: this.worldState,
+        skillLibrary: this.skillLibrary,
+        memoryManager: this.memoryManager,
+        config,
+      });
+
       registerAllTools(this.toolRegistry, {
         bot: this.mcBot.bot,
         worldState: this.worldState,
@@ -161,6 +181,8 @@ class MinecraftAICompanion {
         memoryManager: this.memoryManager,
         planner: this.planner,
         aiProvider,
+        actionSandbox: this.actionSandbox,
+        skillLibrary: this.skillLibrary,
       });
       logger.info(`Зарегистрировано ${this.toolRegistry.getAll().length} инструментов.`);
 
@@ -199,15 +221,20 @@ class MinecraftAICompanion {
 
       // Спинной мозг (Reflex Engine 20 Hz)
       this.reflexEngine = new ReflexEngine(this.mcBot.bot);
+      this.reflexEngine.setEmergencyHandler((reason) => {
+        this.actionSandbox?.abortRunning(reason);
+      });
       this.reflexEngine.start();
       logger.info('✅ Спинной мозг (Reflex Engine 20 Hz) активирован');
 
       this.cognitiveEngine.start(() => this.worldState.getSnapshot(), this.mcBot.bot);
 
-      // Контроллер перемещения
+      // Контроллер перемещения. Настроение влияет на темп/прыжки/бдительность
+      // (только числа — речь остаётся за LLM).
       this.movementController = new MovementController({
         agentName: config.minecraft.username,
         bot: this.mcBot.bot,
+        moodProvider: () => this.humanController?.emotionalSystem?.getMood?.() || null,
       });
 
       // Система автономных целей (бот развивается сам, а не только по командам)
@@ -230,6 +257,18 @@ class MinecraftAICompanion {
       });
       this.initiative.start();
 
+      // Поток сознания и свободная воля бота
+      const { StreamOfConsciousness } = await import('./cognition/stream-of-consciousness.js');
+      this.streamOfConsciousness = new StreamOfConsciousness({
+        bot: this.mcBot.bot,
+        aiBrain: this.aiBrain,
+        memoryManager: this.memoryManager,
+        worldState: this.worldState,
+        config,
+      });
+      this.streamOfConsciousness.start();
+      logger.info('✅ Поток сознания (StreamOfConsciousness) активирован');
+
       this.lootProtection = new LootProtectionManager(this.mcBot.bot);
 
       // Обработчик событий
@@ -243,6 +282,7 @@ class MinecraftAICompanion {
         bodyLanguage: this.bodyLanguage,
         lootProtection: this.lootProtection,
         toolRegistry: this.toolRegistry,
+        commitmentMemory: this.commitmentMemory,
       });
       this.eventHandler.setup();
 
@@ -307,6 +347,10 @@ class MinecraftAICompanion {
 
     if (this.initiative) {
       this.initiative.stop();
+    }
+
+    if (this.streamOfConsciousness) {
+      this.streamOfConsciousness.stop();
     }
 
     if (this.autonomousGoals) {

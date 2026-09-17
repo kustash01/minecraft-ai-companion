@@ -1,10 +1,11 @@
 import { createLogger } from '../utils/logger.js';
+import { HumanErrorEngine } from './human-error-engine.js';
 
 const logger = createLogger('HUMAN_MOTOR');
 
 /**
  * HumanMotor — эмуляция физики и моторики живого человека:
- * - Плавное человеческое движение мыши (сглаживание углов взгляда)
+ * - Плавное человеческое движение мыши (сглаживание углов взгляда с микро-дрожанием)
  * - Jump-sprinting (паркур и спринт с прыжками для ускорения)
  * - Автоматическая сортировка хотбара по слотам 1-9
  * - Смена предметов в левую руку (F-key offhand swap)
@@ -50,7 +51,7 @@ export class HumanMotor {
   }
 
   /**
-   * Плавное перемещение взгляда к цели (человеческая интерполяция)
+   * Плавное перемещение взгляда к цели (человеческая интерполяция и кривая Fitts)
    */
   static async smoothLook(bot, targetPos, steps = 5) {
     if (!bot || !bot.entity || !targetPos || typeof bot.look !== 'function') return;
@@ -59,14 +60,20 @@ export class HumanMotor {
       const dx = targetPos.x - bot.entity.position.x;
       const dy = targetPos.y - (bot.entity.position.y + 1.6);
       const dz = targetPos.z - bot.entity.position.z;
-      const targetYaw = Math.atan2(-dx, -dz);
-      const targetPitch = Math.atan2(dy, Math.hypot(dx, dz));
+      const rawYaw = Math.atan2(-dx, -dz);
+      const rawPitch = Math.atan2(dy, Math.hypot(dx, dz));
+
+      // Применяем физиологическую микро-погрешность мыши
+      const { yaw: targetYaw, pitch: targetPitch } = HumanErrorEngine.applyMouseJitter(bot, rawYaw, rawPitch);
 
       let currentYaw = bot.entity.yaw;
       let currentPitch = bot.entity.pitch;
 
       for (let i = 1; i <= steps; i++) {
-        const t = i / steps;
+        // Человеческая кривая ускорения-замедления (ease-out)
+        const progress = i / steps;
+        const t = 1 - (1 - progress) * (1 - progress);
+
         const interpYaw = currentYaw + (targetYaw - currentYaw) * t;
         const interpPitch = currentPitch + (targetPitch - currentPitch) * t;
         await bot.look(interpYaw, interpPitch, true);
@@ -102,6 +109,10 @@ export class HumanMotor {
           await bot.equip(waterBucket, 'hand');
           // Наводим взгляд вниз и ставим воду за 1 блок до земли
           await bot.look(bot.entity.yaw, -Math.PI / 2, true);
+          const clutchDelay = HumanErrorEngine.evaluateClutchTiming(bot);
+          if (clutchDelay > 0) {
+            await new Promise((r) => setTimeout(r, clutchDelay));
+          }
           bot.activateItem();
           logger.info(`[${bot.username || 'Bot'}] 💧 MLG Water Clutch активирован!`);
 

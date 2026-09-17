@@ -38,6 +38,7 @@ import { LocalVisionController } from '../cognition/local-vision-controller.js';
 import { AgentRuntime } from './agent-runtime.js';
 import { ActuatorGateway } from './actuator-gateway.js';
 import { ConversationEngine } from '../social/conversation-engine.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 import { SocialConversationMemory } from '../social/social-conversation-memory.js';
 import { classifySocialMessage } from '../social/social-message-classifier.js';
 import { PersonalSocialState } from '../social/personal-social-state.js';
@@ -587,17 +588,17 @@ export class AgentInstance extends EventEmitter {
         return dist <= 7;
       });
 
-      if (closest && Math.random() < 0.45) {
+      if (closest && HumanErrorEngine.chance(0.45)) {
         try {
           await bot.lookAt(closest.entity.position.offset(0, 1.6, 0), true);
-          if (Math.random() < 0.25) {
+          if (HumanErrorEngine.chance(0.25)) {
             await this.bodyLanguage.shiftGreeting(bot);
           }
         } catch (e) {}
-      } else if (Math.random() < 0.25) {
+      } else if (HumanErrorEngine.chance(0.25)) {
         try {
-          const randomYaw = bot.entity.yaw + (Math.random() * 0.8 - 0.4);
-          const randomPitch = Math.random() * 0.3 - 0.15;
+          const randomYaw = bot.entity.yaw + HumanErrorEngine.range(-0.4, 0.4);
+          const randomPitch = HumanErrorEngine.range(-0.15, 0.15);
           await bot.look(randomYaw, randomPitch, true);
         } catch (e) {}
       }
@@ -845,7 +846,7 @@ export class AgentInstance extends EventEmitter {
     if (!afk) return;
 
     const intervalMinutes = afk.frequency || 45;
-    const intervalMs = intervalMinutes * 60 * 1000 * (0.8 + Math.random() * 0.4);
+    const intervalMs = intervalMinutes * 60 * 1000 * HumanErrorEngine.range(0.8, 1.2);
 
     this.afkTimer = setTimeout(() => {
       this._enterAFK(afk);
@@ -860,8 +861,8 @@ export class AgentInstance extends EventEmitter {
     if (!this.isConnected || this.isAFK) return;
 
     const [minSec, maxSec] = afk.duration || [30, 90];
-    const durationSec = minSec + Math.random() * (maxSec - minSec);
-    const reason = afk.reasons[Math.floor(Math.random() * afk.reasons.length)] || 'отошёл';
+    const durationSec = HumanErrorEngine.range(minSec, maxSec);
+    const reason = HumanErrorEngine.choice(afk.reasons) || 'отошёл';
 
     this.isAFK = true;
     this.logger.info(`[AFK] ${this.name} отошёл на ${Math.round(durationSec)}с (${reason})`);

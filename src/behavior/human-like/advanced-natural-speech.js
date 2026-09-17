@@ -1,4 +1,5 @@
 import { createLogger } from '../../utils/logger.js';
+import { HumanErrorEngine } from '../human-error-engine.js';
 
 const logger = createLogger('ADVANCED_NATURAL_SPEECH');
 
@@ -156,7 +157,7 @@ export class AdvancedNaturalSpeech {
     }
 
     // Финальное решение
-    return Math.random() < Math.min(0.98, Math.max(0.01, speakChance));
+    return HumanErrorEngine.chance(Math.min(0.98, Math.max(0.01, speakChance)));
   }
 
   /**
@@ -422,15 +423,15 @@ ${silenceRule}
 
     // 1. Редкие опечатки (1% если не устал, 3% если устал)
     const typoChance = ctx.mentalFatigue > 0.5 ? 0.03 : 0.01;
-    if (Math.random() < typoChance) {
+    if (HumanErrorEngine.chance(typoChance)) {
       processed = this._addTypo(processed);
     }
 
     // 2. Иногда незаконченная мысль (2%)
-    if (Math.random() < 0.02 && processed.length > 20) {
+    if (HumanErrorEngine.chance(0.02) && processed.length > 20) {
       const words = processed.split(' ');
       if (words.length > 4) {
-        processed = words.slice(0, -Math.floor(Math.random() * 2 + 1)).join(' ') + '...';
+        processed = words.slice(0, -Math.floor(HumanErrorEngine.range(1, 3))).join(' ') + '...';
       }
     }
 
@@ -456,17 +457,17 @@ ${silenceRule}
     // Выбираем случайное слово (не первое и не последнее)
     if (words.length < 3) return text;
 
-    const wordIndex = 1 + Math.floor(Math.random() * (words.length - 2));
+    const wordIndex = Math.floor(HumanErrorEngine.range(1, words.length - 1));
     const word = words[wordIndex];
 
     if (word.length < 4) return text;
 
     // Типы опечаток
     const typoTypes = ['swap', 'skip', 'duplicate'];
-    const type = typoTypes[Math.floor(Math.random() * typoTypes.length)];
+    const type = HumanErrorEngine.choice(typoTypes);
 
     const chars = word.split('');
-    const pos = 1 + Math.floor(Math.random() * (chars.length - 2));
+    const pos = Math.floor(HumanErrorEngine.range(1, chars.length - 1));
 
     switch (type) {
       case 'swap':

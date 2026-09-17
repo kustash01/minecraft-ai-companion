@@ -1,4 +1,5 @@
 import { createLogger } from '../../utils/logger.js';
+import { HumanErrorEngine } from '../human-error-engine.js';
 
 const logger = createLogger('CONTEXTUAL_MEMORY');
 
@@ -136,7 +137,7 @@ export class ContextualMemorySystem {
         forgetChance = 0;
       }
 
-      if (Math.random() < forgetChance) {
+      if (HumanErrorEngine.chance(forgetChance)) {
         this._forgetMemory(memory);
       } else {
         // Снижаем чёткость
@@ -149,15 +150,15 @@ export class ContextualMemorySystem {
    * Иногда спонтанно вспоминает что-то (как у людей)
    */
   spontaneousRecall() {
-    if (Math.random() > 0.02) return null; // 2% шанс
+    if (!HumanErrorEngine.chance(0.02)) return null; // 2% шанс
 
     // Выбираем случайное воспоминание из среднесрочной памяти
     if (this.mediumTerm.length === 0) return null;
 
-    const memory = this.mediumTerm[Math.floor(Math.random() * this.mediumTerm.length)];
+    const memory = HumanErrorEngine.choice(this.mediumTerm);
 
     // Эмоционально яркие воспоминания всплывают чаще
-    if (memory.emotionalIntensity > 0.6 || Math.random() < 0.3) {
+    if (memory.emotionalIntensity > 0.6 || HumanErrorEngine.chance(0.3)) {
       memory.accessCount++;
 
       return {
@@ -253,9 +254,9 @@ export class ContextualMemorySystem {
     // Шанс вспомнить зависит от сложности
     const recallChance = 1 - memory.recallDifficulty;
 
-    if (Math.random() < recallChance) {
+    if (HumanErrorEngine.chance(recallChance)) {
       // Вспомнили! Но память нечёткая
-      memory.clarity = 0.3 + Math.random() * 0.3; // 30-60% чёткости
+      memory.clarity = HumanErrorEngine.range(0.3, 0.6); // 30-60% чёткости
 
       // Возвращаем в краткосрочную память
       this.shortTerm.push(memory);
@@ -328,7 +329,7 @@ export class ContextualMemorySystem {
     // Чем менее чёткая память, тем больше искажений
     const distortionLevel = 1 - memory.clarity;
 
-    if (distortionLevel > 0.3 && Math.random() < distortionLevel) {
+    if (distortionLevel > 0.3 && HumanErrorEngine.chance(distortionLevel)) {
       // Искажаем детали
       if (distorted.details) {
         distorted.details = this._distortDetails(distorted.details, distortionLevel);
@@ -347,9 +348,9 @@ export class ContextualMemorySystem {
 
     // Числа становятся приблизительными
     for (const [key, value] of Object.entries(distorted)) {
-      if (typeof value === 'number' && Math.random() < level) {
+      if (typeof value === 'number' && HumanErrorEngine.chance(level)) {
         const variation = value * level * 0.5;
-        distorted[key] = Math.round(value + (Math.random() - 0.5) * 2 * variation);
+        distorted[key] = Math.round(value + HumanErrorEngine.jitter(variation));
       }
     }
 
@@ -383,7 +384,10 @@ export class ContextualMemorySystem {
    * Сохраняет в постоянное хранилище
    */
   saveToStorage() {
-    if (!this.storage) return;
+    // Persistence is optional: only use the storage if it actually exposes a
+    // key/value save() method. MemoryManager (the storage passed in index.js)
+    // has no such method, so we no-op instead of throwing.
+    if (!this.storage || typeof this.storage.save !== 'function') return;
 
     try {
       this.storage.save(`memory_${this.agentName}`, {
@@ -401,7 +405,10 @@ export class ContextualMemorySystem {
    * Загружает из постоянного хранилища
    */
   loadFromStorage() {
-    if (!this.storage) return;
+    // Persistence is optional: only load if the storage exposes a load()
+    // method. MemoryManager (passed in index.js) has none, so we no-op
+    // instead of throwing "this.storage.load is not a function".
+    if (!this.storage || typeof this.storage.load !== 'function') return;
 
     try {
       const data = this.storage.load(`memory_${this.agentName}`);

@@ -1,4 +1,5 @@
 import { createLogger } from '../../utils/logger.js';
+import { HumanErrorEngine } from '../human-error-engine.js';
 
 const logger = createLogger('AFK_SYSTEM');
 
@@ -56,7 +57,7 @@ export class AFKSystem {
       afkChance += 0.08;
     }
 
-    const shouldAFK = Math.random() < afkChance;
+    const shouldAFK = HumanErrorEngine.chance(afkChance, { stress: tiredness, fatigue: tiredness });
 
     if (shouldAFK) {
       const afkDetails = await this._planAFK(tiredness, sessionDuration);
@@ -76,14 +77,14 @@ export class AFKSystem {
   async _planAFK(tiredness, sessionDuration) {
     // Причина AFK
     const reasons = this._getAFKReasons(tiredness, sessionDuration);
-    const reason = reasons[Math.floor(Math.random() * reasons.length)];
+    const reason = HumanErrorEngine.choice(reasons);
 
     // Длительность AFK (минуты)
     let duration = this._getAFKDuration(reason, tiredness);
 
     // Будет ли объявлять причину
     const announceChance = this._getAnnounceChance(reason);
-    const shouldAnnounce = Math.random() < announceChance;
+    const shouldAnnounce = HumanErrorEngine.chance(announceChance);
 
     // Сообщение
     const message = shouldAnnounce ? await this._getAFKMessage(reason) : 'афк';
@@ -140,7 +141,7 @@ export class AFKSystem {
     };
     
     const [min, max] = durations[reason] || [2, 5];
-    let duration = min + Math.random() * (max - min);
+    let duration = HumanErrorEngine.range(min, max);
     
     // Усталость увеличивает длительность
     if (tiredness > 0.8) {
@@ -234,9 +235,9 @@ export class AFKSystem {
     // Проверяем вернулся ли по плану
     if (now >= this.plannedReturnTime) {
       // Иногда возвращаются позже (20% шанс)
-      if (Math.random() < 0.2) {
+      if (HumanErrorEngine.chance(0.2)) {
         // Задерживаются на 2-10 минут
-        const extraDelay = (2 + Math.random() * 8) * 60 * 1000;
+        const extraDelay = HumanErrorEngine.range(2, 10) * 60 * 1000;
         this.plannedReturnTime = now + extraDelay;
         logger.debug(`[${this.profile.name}] Задержался AFK еще на ${(extraDelay / 60000).toFixed(1)} минут`);
         return { shouldReturn: false };
@@ -248,7 +249,7 @@ export class AFKSystem {
     
     // Иногда возвращаются раньше (10% шанс)
     const timeInAFK = (now - this.afkStartTime) / (60 * 1000);
-    if (timeInAFK > 1 && Math.random() < 0.1) {
+    if (timeInAFK > 1 && HumanErrorEngine.chance(0.1)) {
       return this._returnFromAFK();
     }
     
@@ -265,7 +266,7 @@ export class AFKSystem {
     this.lastAFKTime = Date.now();
     
     // Иногда объявляет возвращение (50% шанс)
-    const shouldAnnounce = Math.random() < 0.5;
+    const shouldAnnounce = HumanErrorEngine.chance(0.5);
     const message = shouldAnnounce ? this._getReturnMessage(afkDuration) : null;
     
     logger.info(`[${this.profile.name}] Вернулся из AFK (был ${afkDuration.toFixed(1)} минут)`);
@@ -295,12 +296,12 @@ export class AFKSystem {
    */
   _getReturnMessage(duration) {
     if (duration > 20) {
-      return ['вернулся', 'бэк', 'всем привет снова'][Math.floor(Math.random() * 3)];
+      return HumanErrorEngine.choice(['вернулся', 'бэк', 'всем привет снова']);
     } else if (duration > 10) {
-      return ['вернулся', 'бэк', 'я тут'][Math.floor(Math.random() * 3)];
+      return HumanErrorEngine.choice(['вернулся', 'бэк', 'я тут']);
     } else {
       // Короткий AFK - реже объявляют возвращение
-      return Math.random() < 0.3 ? 'бэк' : null;
+      return HumanErrorEngine.chance(0.3) ? 'бэк' : null;
     }
   }
 

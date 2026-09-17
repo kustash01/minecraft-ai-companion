@@ -77,6 +77,15 @@ export class LongTermMemory {
         content TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS free_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        content TEXT NOT NULL,
+        tags TEXT DEFAULT '',
+        importance INTEGER DEFAULT 5,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
     `);
   }
 
@@ -175,6 +184,35 @@ export class LongTermMemory {
 
   getDiaryByDay(mcDay) {
     return this.db.prepare('SELECT * FROM diary WHERE mc_day = ? ORDER BY id ASC').all(mcDay);
+  }
+
+  // --- Free Notes / Thoughts Operations ---
+  addNote(content, tags = '', importance = 5) {
+    const stmt = this.db.prepare(`
+      INSERT INTO free_notes (content, tags, importance)
+      VALUES (?, ?, ?)
+    `);
+    const info = stmt.run(String(content), String(tags || ''), Number(importance) || 5);
+    return info.lastInsertRowid;
+  }
+
+  getRecentNotes(limit = 10) {
+    return this.db.prepare(`
+      SELECT * FROM free_notes ORDER BY id DESC LIMIT ?
+    `).all(limit);
+  }
+
+  searchNotes(query, limit = 5) {
+    return this.db.prepare(`
+      SELECT * FROM free_notes WHERE content LIKE ? OR tags LIKE ? ORDER BY id DESC LIMIT ?
+    `).all(`%${query}%`, `%${query}%`, limit);
+  }
+
+  deleteNote(idOrSubstring) {
+    if (typeof idOrSubstring === 'number' || (!isNaN(Number(idOrSubstring)) && String(idOrSubstring).trim() !== '')) {
+      return this.db.prepare('DELETE FROM free_notes WHERE id = ?').run(Number(idOrSubstring));
+    }
+    return this.db.prepare('DELETE FROM free_notes WHERE content LIKE ?').run(`%${idOrSubstring}%`);
   }
 
   close() {

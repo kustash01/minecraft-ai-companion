@@ -1,6 +1,7 @@
 import { createLogger } from '../utils/logger.js';
 import vec3 from 'vec3';
 import { adaptiveCamera } from './adaptive-camera.js';
+import { HumanErrorEngine } from './human-error-engine.js';
 
 const logger = createLogger('SMART_REPAIR');
 
@@ -213,7 +214,8 @@ export class SmartCraterRepair {
           repaired++;
           blocksPlaced.push(itemToPlace.name);
           // Человеческая пауза между установками блоков
-          await new Promise((r) => setTimeout(r, 160 + Math.random() * 80));
+          const pauseMs = Math.round(HumanErrorEngine.range(160, 240, bot));
+          await new Promise((r) => setTimeout(r, pauseMs));
         }
       } catch (err) {
         logger.debug(`[SMART_REPAIR] Ошибка установки блока: ${err.message}`);

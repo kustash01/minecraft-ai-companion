@@ -1,5 +1,6 @@
 import { createLogger } from '../utils/logger.js';
 import { sleep } from '../utils/helpers.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('LIVING_PERSONALITY');
 
@@ -74,7 +75,7 @@ export class LivingPersonality {
       logger.debug(`[${this.agentName}] ошибка в цикле жизни: ${err.message}`);
     }
 
-    const nextInterval = 8000 + Math.random() * 12000;
+    const nextInterval = HumanErrorEngine.range(8000, 20000);
     this.lifeLoopInterval = setTimeout(() => this.liveLoop(), nextInterval);
   }
 
@@ -108,7 +109,7 @@ export class LivingPersonality {
     const world = this.worldState?.getSnapshot?.();
     if (!world) return;
 
-    if (world.timeOfDay === 'sunset' && Math.random() < 0.15) {
+    if (world.timeOfDay === 'sunset' && HumanErrorEngine.chance(0.15)) {
       this.innerMonologue.currentThoughts.push({
         text: 'Красивый закат',
         timestamp: now,
@@ -121,11 +122,11 @@ export class LivingPersonality {
       p => p !== this.agentName && p !== this.owner
     );
 
-    if (newPlayers && newPlayers.length > 0 && Math.random() < 0.3) {
+    if (newPlayers && newPlayers.length > 0 && HumanErrorEngine.chance(0.3)) {
       this.innerMonologue.addCuriosity(`Кто-то новый: ${newPlayers[0]}`);
     }
 
-    if (world.health < 10 && Math.random() < 0.4) {
+    if (world.health < 10 && HumanErrorEngine.chance(0.4)) {
       this.innerMonologue.addWorry('Мало здоровья');
     }
   }
@@ -159,7 +160,7 @@ export class LivingPersonality {
       return;
     }
 
-    if (silenceDuration > 600000 && Math.random() < 0.05) {
+    if (silenceDuration > 600000 && HumanErrorEngine.chance(0.05)) {
       const messages = [
         'ты тут?',
         'как успехи?',
@@ -167,7 +168,7 @@ export class LivingPersonality {
         'куда пропал?',
       ];
 
-      const msg = messages[Math.floor(Math.random() * messages.length)];
+      const msg = HumanErrorEngine.choice(messages);
 
       if (this.bot?.chat) {
         this.bot.chat(msg);
@@ -182,7 +183,7 @@ export class LivingPersonality {
    * Спонтанно вспоминает прошлое.
    */
   async maybeRemember() {
-    if (Math.random() > 0.02) return;
+    if (!HumanErrorEngine.chance(0.02)) return;
 
     const memory = this.emotionalMemory.randomMemory();
 

@@ -13,6 +13,15 @@ export class ContextManager {
     this.maxHistoryLength = 20;
     this.recentHistory = [];
     this.bot = null;
+    // Optional CommitmentMemory — lets the bot recall its own open promises.
+    this.commitmentMemory = null;
+  }
+
+  /**
+   * Attach the commitment memory so open promises surface in the LLM context.
+   */
+  setCommitmentMemory(cm) {
+    this.commitmentMemory = cm || null;
   }
 
   /**
@@ -66,6 +75,15 @@ export class ContextManager {
       if (memContext) {
         parts.push(`\n${memContext}`);
       }
+    }
+
+    // Открытые обещания/договорённости (живая память): бот сам вспоминает,
+    // что обещал и не сделал. Точные слова формулирует LLM.
+    if (this.commitmentMemory?.getContextForPrompt) {
+      try {
+        const promises = this.commitmentMemory.getContextForPrompt();
+        if (promises) parts.push(`\n[МОИ ОБЕЩАНИЯ]\n${promises}`);
+      } catch (_) {}
     }
 
     // Недавняя история (сжатая)

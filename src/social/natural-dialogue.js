@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('NATURAL_DIALOGUE');
 
@@ -52,7 +53,7 @@ export class NaturalDialogue {
     if (mood.stress > 0.7) speakChance -= 0.1;
 
     // Случайность — основа естественности
-    if (Math.random() > speakChance) {
+    if (!HumanErrorEngine.chance(speakChance, mood)) {
       return null; // Молчание
     }
 
@@ -200,7 +201,7 @@ ${recentContext || '(тишина)'}
    */
   _addNaturalImperfections(text) {
     // 2% шанс на опечатку
-    if (Math.random() < 0.02) {
+    if (HumanErrorEngine.chance(0.02)) {
       const typos = {
         'что': 'чт',
         'это': 'эт',
@@ -211,7 +212,7 @@ ${recentContext || '(тишина)'}
       };
 
       for (const [correct, typo] of Object.entries(typos)) {
-        if (text.includes(correct) && Math.random() < 0.5) {
+        if (text.includes(correct) && HumanErrorEngine.chance(0.5)) {
           text = text.replace(correct, typo);
           break; // Только одна опечатка
         }
@@ -219,7 +220,7 @@ ${recentContext || '(тишина)'}
     }
 
     // 5% шанс на незаконченную мысль
-    if (Math.random() < 0.05 && text.length > 15) {
+    if (HumanErrorEngine.chance(0.05) && text.length > 15) {
       const words = text.split(' ');
       if (words.length > 3) {
         text = words.slice(0, -1).join(' ') + '...';
@@ -265,7 +266,7 @@ ${recentContext || '(тишина)'}
       if (relationship.irritation > 0.5) respondChance -= 0.2;
     }
 
-    if (Math.random() > respondChance) {
+    if (!HumanErrorEngine.chance(respondChance)) {
       return null;
     }
 
@@ -291,10 +292,10 @@ ${recentContext || '(тишина)'}
     if (silenceDuration < 120000) return false;
 
     // 2-10 минут — очень низкий шанс (0.5%)
-    if (silenceDuration < 600000) return Math.random() < 0.005;
+    if (silenceDuration < 600000) return HumanErrorEngine.chance(0.005);
 
     // Больше 10 минут — низкий шанс (2%)
-    return Math.random() < 0.02;
+    return HumanErrorEngine.chance(0.02);
   }
 
   /**

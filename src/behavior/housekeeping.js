@@ -1,4 +1,5 @@
 import logger from '../utils/logger.js';
+import { HumanErrorEngine } from './human-error-engine.js';
 
 export class HousekeepingEngine {
   constructor() {
@@ -42,8 +43,7 @@ export class HousekeepingEngine {
     const rawProb = (disorderRatio * 0.5) + (habitScore * 0.3) - recentPenalty;
     const finalProb = Math.max(0.01, Math.min(0.90, rawProb));
 
-    const roll = Math.random();
-    const shouldClean = roll <= finalProb;
+    const shouldClean = HumanErrorEngine.chance(finalProb);
 
     if (shouldClean) {
       this.lastCleanupTime = now;

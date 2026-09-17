@@ -2,6 +2,7 @@ import vec3 from 'vec3';
 import { createLogger } from '../utils/logger.js';
 import { BotActionWrapper } from './bot-action-wrapper.js';
 import { HumanTradeoffs } from './human-tradeoffs.js';
+import { HumanErrorEngine } from './human-error-engine.js';
 
 const logger = createLogger('CAVE_NAV');
 
@@ -309,8 +310,8 @@ export class CaveNavigation {
       this.lastGazeScan = now;
       // Осторожно осматриваемся по сторонам и вниз (проверяем пол/обрыв/врагов)
       if (typeof bot.look === 'function' && bot.entity) {
-        const yawJitter = (Math.random() - 0.5) * 1.2;
-        const pitchCheck = -0.3 + (Math.random() * 0.4); // Смотрим чуть под ноги или на уровень глаз
+        const yawJitter = HumanErrorEngine.jitter(0.6, bot);
+        const pitchCheck = HumanErrorEngine.range(-0.3, 0.1, bot); // Смотрим чуть под ноги или на уровень глаз
         bot.look(bot.entity.yaw + yawJitter, pitchCheck, true).catch(() => {});
       }
     }

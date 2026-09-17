@@ -1,4 +1,5 @@
 import logger from '../utils/logger.js';
+import { HumanErrorEngine } from './human-error-engine.js';
 
 export class BehavioralVarianceEngine {
   constructor() {
@@ -33,7 +34,7 @@ export class BehavioralVarianceEngine {
       const noveltyBonus = repeatCount === 0 ? 0.2 : 0.0;
 
       // Small bounded human jitter (+- 0.15) to avoid robotic determinism
-      const humanJitter = (Math.random() - 0.5) * 0.3;
+      const humanJitter = HumanErrorEngine.jitter(0.15, context);
 
       const totalScore = base + pref + habit + noveltyBonus - recentPenalty - (stress * 0.2) + humanJitter;
 
@@ -48,7 +49,7 @@ export class BehavioralVarianceEngine {
 
     // Pick among top choices weighted by finalScore
     const totalWeight = scored.reduce((sum, c) => sum + c.finalScore, 0);
-    let randomThreshold = Math.random() * totalWeight;
+    let randomThreshold = HumanErrorEngine.range(0, totalWeight, context);
 
     let selected = scored[0];
     for (const cand of scored) {

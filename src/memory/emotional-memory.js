@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 
 const logger = createLogger('EMOTIONAL_MEMORY');
 
@@ -149,22 +150,13 @@ ${this.memories.slice(0, 20).map((m, i) =>
   randomMemory() {
     if (this.memories.length === 0) return null;
 
-    const weights = this.memories.map(m =>
-      m.importance * 0.6 + (m.timesRecalled / 20) * 0.4
-    );
+    const memory = HumanErrorEngine.weightedChoice(
+      this.memories,
+      m => m.importance * 0.6 + (m.timesRecalled / 20) * 0.4
+    ) || this.memories[0];
 
-    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
-    let random = Math.random() * totalWeight;
-
-    for (let i = 0; i < this.memories.length; i++) {
-      random -= weights[i];
-      if (random <= 0) {
-        this.memories[i].timesRecalled++;
-        return this.memories[i];
-      }
-    }
-
-    return this.memories[0];
+    memory.timesRecalled++;
+    return memory;
   }
 
   /**

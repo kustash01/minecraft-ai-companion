@@ -4,6 +4,7 @@ import { ContextualMemorySystem } from './contextual-memory-system.js';
 import { DynamicEmotionalSystem } from './dynamic-emotional-system.js';
 import { RealisticBehaviorPatterns } from './realistic-behavior-patterns.js';
 import { NaturalMistakeSystem } from './natural-mistake-system.js';
+import { HumanErrorEngine } from '../human-error-engine.js';
 
 const logger = createLogger('HUMAN_CONTROLLER');
 
@@ -373,7 +374,7 @@ export class MaximalHumanController {
       this.memorySystem.naturalForget();
 
       // Раз в минуту — консолидация памяти
-      if (Math.random() < 0.02) {
+      if (HumanErrorEngine.chance(0.02)) {
         this.memorySystem.consolidate();
       }
 

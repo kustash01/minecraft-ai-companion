@@ -1,4 +1,5 @@
 import { createLogger } from '../../utils/logger.js';
+import { HumanErrorEngine } from '../human-error-engine.js';
 
 const logger = createLogger('PROBABILISTIC_REACTIONS');
 
@@ -97,12 +98,16 @@ export class ProbabilisticReactions {
     delayedProb /= total;
     silentProb /= total;
     
-    // Выбираем реакцию
-    const rand = Math.random();
-    
-    if (rand < immediateProb) {
+    // Выбираем реакцию через HumanErrorEngine
+    const outcome = HumanErrorEngine.weightedChoice([
+      { type: 'immediate', weight: immediateProb },
+      { type: 'delayed', weight: delayedProb },
+      { type: 'silent', weight: silentProb }
+    ], item => item.weight);
+
+    if (outcome?.type === 'immediate') {
       return { shouldReact: true, reactionType: 'immediate' };
-    } else if (rand < immediateProb + delayedProb) {
+    } else if (outcome?.type === 'delayed') {
       // Отложенная реакция - через случайное время
       const delayMinutes = this._getDelayTime(eventType);
       this._scheduleDelayedMention(eventType, eventData, delayMinutes);
@@ -120,9 +125,9 @@ export class ProbabilisticReactions {
     const urgentEvents = ['found_diamonds', 'found_ancient_debris', 'nearly_died', 'found_stronghold'];
     
     if (urgentEvents.includes(eventType)) {
-      return 5 + Math.random() * 15; // 5-20 минут
+      return HumanErrorEngine.range(5, 20); // 5-20 минут
     } else {
-      return 15 + Math.random() * 45; // 15-60 минут
+      return HumanErrorEngine.range(15, 60); // 15-60 минут
     }
   }
 
@@ -155,12 +160,12 @@ export class ProbabilisticReactions {
       
       if (!mention.mentioned && mention.scheduledFor <= now) {
         // Вероятность упомянуть прямо сейчас или отложить еще
-        if (Math.random() < 0.7) { // 70% что упомянет
+        if (HumanErrorEngine.chance(0.7)) { // 70% что упомянет
           mention.mentioned = true;
           return mention;
         } else {
           // Откладываем еще на 5-15 минут
-          mention.scheduledFor = now + (5 + Math.random() * 10) * 60 * 1000;
+          mention.scheduledFor = now + HumanErrorEngine.range(5, 15) * 60 * 1000;
         }
       }
     }

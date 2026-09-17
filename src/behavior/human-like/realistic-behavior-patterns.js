@@ -1,4 +1,5 @@
 import { createLogger } from '../../utils/logger.js';
+import { HumanErrorEngine } from '../human-error-engine.js';
 
 const logger = createLogger('REALISTIC_BEHAVIOR_PATTERNS');
 
@@ -113,7 +114,7 @@ export class RealisticBehaviorPatterns {
     }
 
     // 5. Добавляем паузу перед действием (иногда)
-    if (Math.random() < this.thinkingPauses.beforeAction) {
+    if (HumanErrorEngine.chance(this.thinkingPauses.beforeAction, this.emotions?.getMood())) {
       const pauseDuration = this._calculateThinkingPause();
       return {
         execute: true,
@@ -155,7 +156,7 @@ export class RealisticBehaviorPatterns {
     }
 
     // 5. Случайная вариация (люди непостоянны)
-    const variation = 1 + (Math.random() - 0.5) * 2 * this.reactionTimeVariation;
+    const variation = 1 + HumanErrorEngine.jitter(this.reactionTimeVariation, mood);
     reactionTime *= variation;
 
     return Math.max(300, Math.round(reactionTime));
@@ -181,13 +182,13 @@ export class RealisticBehaviorPatterns {
     // Нехватка времени
     if (context.timePress) chance += 0.15;
 
-    if (Math.random() < chance) {
+    if (HumanErrorEngine.chance(chance, mood)) {
       // Выбираем не оптимальный вариант
       const nonOptimal = choices.slice(1); // Предполагаем первый оптимальный
       if (nonOptimal.length > 0) {
         return {
           suboptimal: true,
-          choice: nonOptimal[Math.floor(Math.random() * nonOptimal.length)],
+          choice: HumanErrorEngine.choice(nonOptimal),
           reason: this._getSuboptimalReason(mood),
         };
       }
@@ -218,7 +219,7 @@ export class RealisticBehaviorPatterns {
         if (mood.stress > 0.7) chance *= 1.5;
       }
 
-      if (Math.random() < chance) {
+      if (HumanErrorEngine.chance(chance, mood)) {
         return {
           slipped: true,
           type,
@@ -257,10 +258,10 @@ export class RealisticBehaviorPatterns {
       if (mood.focus > 0.8) distractionChance *= 0.3; // Сфокусирован = меньше отвлекается
     }
 
-    if (Math.random() < distractionChance) {
+    if (HumanErrorEngine.chance(distractionChance, mood)) {
       this.currentDistraction = {
         startTime: Date.now(),
-        duration: 5000 + Math.random() * 15000,
+        duration: HumanErrorEngine.range(5000, 20000, mood),
         type: this._chooseDistractionType(),
       };
 
@@ -283,7 +284,7 @@ export class RealisticBehaviorPatterns {
       'brief_daydream',       // Задумался
     ];
 
-    return types[Math.floor(Math.random() * types.length)];
+    return HumanErrorEngine.choice(types);
   }
 
   /**
@@ -310,7 +311,7 @@ export class RealisticBehaviorPatterns {
       procrastinateChance += 0.25;
     }
 
-    return Math.random() < procrastinateChance;
+    return HumanErrorEngine.chance(procrastinateChance, mood);
   }
 
   /**
@@ -345,7 +346,7 @@ export class RealisticBehaviorPatterns {
         // Вероятность вернуться растёт со временем
         const returnChance = Math.min(0.8, (timePassed - minWait) / (maxWait - minWait));
 
-        if (Math.random() < returnChance) {
+        if (HumanErrorEngine.chance(returnChance)) {
           ready.push(task);
         }
       }
@@ -464,11 +465,11 @@ export class RealisticBehaviorPatterns {
    */
   _calculateThinkingPause() {
     const { minPauseMs, maxPauseMs } = this.thinkingPauses;
+    const mood = this.emotions?.getMood();
 
-    let pause = minPauseMs + Math.random() * (maxPauseMs - minPauseMs);
+    let pause = HumanErrorEngine.range(minPauseMs, maxPauseMs, mood);
 
     // Модификаторы
-    const mood = this.emotions?.getMood();
     if (mood) {
       if (mood.fatigue > 0.6) pause *= 1.5;
       if (mood.stress > 0.7) pause *= 1.3;
@@ -534,7 +535,7 @@ export class RealisticBehaviorPatterns {
       'distracted',
     ];
 
-    return reasons[Math.floor(Math.random() * reasons.length)];
+    return HumanErrorEngine.choice(reasons);
   }
 
   /**

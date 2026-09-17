@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { HumanErrorEngine } from '../behavior/human-error-engine.js';
 import { stableSocialScore } from './group-conversation-window.js';
 import { classifySocialMessage } from './social-message-classifier.js';
 import { socialResponsePolicy } from './social-response-policy.js';
@@ -187,7 +188,8 @@ export class ConversationEngine {
        // arriving as a synchronized bot chorus.
        const talkativeness = Number(this.profile?.traits?.talkativeness ?? 0.5);
        const span = Math.max(0, this.chatDelay.maxMs - this.chatDelay.minMs);
-       const delayMs = Math.round(this.chatDelay.minMs + span * (1 - talkativeness) * Math.random());
+       const targetMax = this.chatDelay.minMs + span * (1 - talkativeness);
+       const delayMs = Math.round(HumanErrorEngine.range(this.chatDelay.minMs, targetMax));
        if (delayMs > 0) await this._delay(delayMs, controller.signal);
        if (controller.signal.aborted || !this._isCurrent(generation)) return false;
        const result = await this.sendChat(text, { generation, turn: active.turn, social: true, envelopeId: message.messageId, recipientScope });
